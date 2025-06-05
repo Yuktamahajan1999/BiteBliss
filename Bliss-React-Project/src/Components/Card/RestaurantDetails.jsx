@@ -1,6 +1,10 @@
-// eslint-disable-next-line no-unused-vars
-import React, { useEffect, useState } from 'react';
+/* eslint-disable no-unused-vars */
+import { useEffect, useReducer, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import axios from 'axios';
+import menuData from '../data';
+
+// Icons
 import StarIcon from '@mui/icons-material/Star';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
@@ -15,8 +19,6 @@ import RateReviewIcon from '@mui/icons-material/RateReview';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import InfoIcon from '@mui/icons-material/Info';
-import axios from 'axios';
-import menuData from '../data';
 
 const RestaurantDetails = () => {
   const { id } = useParams();
@@ -24,41 +26,89 @@ const RestaurantDetails = () => {
 
   const [restaurant, setRestaurant] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [cart, setCart] = useState({});
   const [activeTab, setActiveTab] = useState('menu');
   const [deliveryMode, setDeliveryMode] = useState('delivery');
   const [searchQuery, setSearchQuery] = useState('');
-  const [ setHasOrderedBefore] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [isFavorite, setIsFavorite] = useState(false);
   const [showFullDescription, setShowFullDescription] = useState({});
-  const [isScrolled] = useState(false);
+
+  const cartReducer = (state, action) => {
+    switch (action.type) {
+      case 'ADD_ITEM': {
+        const { name, price } = action.payload;
+        const existingItem = state[name] || { quantity: 0, price };
+        return {
+          ...state,
+          [name]: {
+            ...existingItem,
+            quantity: existingItem.quantity + 1,
+          }
+        };
+      }
+      case 'REMOVE_ITEM': {
+        const { name } = action.payload;
+        const existingItem = state[name];
+        if (!existingItem) return state;
+
+        if (existingItem.quantity === 1) {
+          const { [name]: _, ...rest } = state;
+          return rest;
+        } else {
+          return {
+            ...state,
+            [name]: {
+              ...existingItem,
+              quantity: existingItem.quantity - 1,
+            }
+          };
+        }
+      }
+      default:
+        return state;
+    }
+  };
+
+  const initialCartState = {};
+
+
+  const [cart, dispatch] = useReducer(cartReducer, initialCartState);
 
   useEffect(() => {
     const fetchRestaurant = async () => {
       try {
         const res = await axios.get(`http://localhost:8000/restaurant/getRestaurantById?id=${id}`);
 
+        const images = [];
+        if (res.data.image) images.push(res.data.image);
+        if (res.data.photos && Array.isArray(res.data.photos)) {
+          images.push(...res.data.photos);
+        }
+
         setRestaurant({
           ...res.data,
-          images: [
-            res.data.image || "/default-restaurant.jpg",
-            "/restaurant-interior.jpg",
-            "/restaurant-food.jpg"
-          ],
+          images: images.length > 0 ? images : ["/default-restaurant.jpg"],
           offers: [
             { text: "No packaging charges", icon: <LocalOfferIcon /> },
             { text: "Price match guarantee", icon: <LocalOfferIcon /> },
             { text: "Frequently reordered", icon: <LocalOfferIcon /> },
             { text: "Special discounts for customers", icon: <LocalOfferIcon /> }
           ],
-          deliveryTime: "20-30 mins",
-          distance: "2 km",
-          fssaiNo: "10924015000015",
-          description: "A premium dining experience with a focus on fresh, locally-sourced ingredients. Our chefs craft each dish with care and attention to detail, ensuring every bite is memorable."
+          deliveryTime: res.data.time || "20-30 mins",
+          distance: res.data.distance || "2 km",
+          fssaiNo: res.data.fssaiNumber || "10924015000015",
+          description:
+            res.data.description ||
+            "A premium dining experience with a focus on fresh, locally-sourced ingredients. Our chefs craft each dish with care and attention to detail, ensuring every bite is memorable.",
+          diningAvailability: res.data.diningAvailability ?? res.data.hasDining ?? false,
+          location: res.data.address || "",
+          rating: res.data.rating || 0,
+          ratingCount: res.data.ratingCount || 0,
+          cuisine: res.data.cuisine || [],
+          reviews: res.data.reviews || [],
         });
-        
+
         if (menuData.categories.length > 0) {
           setSelectedCategory(menuData.categories[0].name);
         }
@@ -72,34 +122,30 @@ const RestaurantDetails = () => {
     fetchRestaurant();
   }, [id]);
 
+  const renderFoodTypeIcon = (type) => (
+    <img
+      src={type === 'veg' ? '/Icons/veg.png' : '/Icons/non veg.png'}
+      alt={type}
+      style={{
+        width: '18px',
+        height: '18px',
+        marginRight: '8px',
+        display: 'block'
+      }}
+    />
+  );
 
   const addToCart = (itemName, price) => {
-    setCart(prev => ({
-      ...prev,
-      [itemName]: {
-        quantity: (prev[itemName]?.quantity || 0) + 1,
-        price
-      }
-    }));
-    setHasOrderedBefore(true);
+    dispatch({ type: 'ADD_ITEM', payload: { name: itemName, price } });
   };
 
   const removeFromCart = (itemName) => {
-    setCart(prev => {
-      const newCart = { ...prev };
-      if (newCart[itemName]) {
-        if (newCart[itemName].quantity > 1) {
-          newCart[itemName].quantity -= 1;
-        } else {
-          delete newCart[itemName];
-        }
-      }
-      return newCart;
-    });
+    dispatch({ type: 'REMOVE_ITEM', payload: { name: itemName } });
   };
 
+
   const getTotalItems = () => Object.values(cart).reduce((sum, item) => sum + item.quantity, 0);
-  const getTotalPrice = () => Object.entries(cart).reduce((sum, [_, item]) => sum + (item.quantity * item.price), 0);
+  const getTotalPrice = () => Object.entries(cart).reduce((sum, [, item]) => sum + (item.quantity * item.price), 0);
 
   const filteredCategories = menuData.categories.map(category => ({
     ...category,
@@ -109,8 +155,8 @@ const RestaurantDetails = () => {
     )
   })).filter(category => category.items.length > 0);
 
-  const displayCategories = searchQuery 
-    ? filteredCategories 
+  const displayCategories = searchQuery
+    ? filteredCategories
     : filteredCategories.filter(cat => cat.name === selectedCategory);
 
   const nextImage = () => {
@@ -129,19 +175,20 @@ const RestaurantDetails = () => {
   };
 
   const renderCartButton = (item) => {
+    if (deliveryMode === 'dining') return null;
     const cartItem = cart[item.name];
     if (cartItem && cartItem.quantity > 0) {
       return (
-        <div className="quantity-controls">
+        <div className="restaurant-quantity-controls">
           <button onClick={(e) => {
             e.stopPropagation();
             removeFromCart(item.name);
-          }} className="quantity-btn"><RemoveIcon fontSize="small" /></button>
+          }} className="restaurant-quantity-btn"><RemoveIcon fontSize="small" /></button>
           <span>{cartItem.quantity}</span>
           <button onClick={(e) => {
             e.stopPropagation();
             addToCart(item.name, item.price);
-          }} className="quantity-btn"><AddIcon fontSize="small" /></button>
+          }} className="restaurant-quantity-btn"><AddIcon fontSize="small" /></button>
         </div>
       );
     }
@@ -149,7 +196,7 @@ const RestaurantDetails = () => {
       <button onClick={(e) => {
         e.stopPropagation();
         addToCart(item.name, item.price);
-      }} className="add-btn">ADD</button>
+      }} className="restaurant-add-btn">ADD</button>
     );
   };
 
@@ -160,208 +207,232 @@ const RestaurantDetails = () => {
   };
 
   if (loading) return (
-    <div className="loading-screen">
-      <div className="spinner"></div>
+    <div className="restaurant-loading-screen">
+      <div className="restaurant-spinner"></div>
       <p>Loading restaurant details...</p>
     </div>
   );
-  
+
   if (!restaurant) return (
-    <div className="not-found">
+    <div className="restaurant-not-found">
       <h2>Restaurant not found</h2>
       <p>We couldn&apos;t find the restaurant you&apos;re looking for.</p>
-      <button onClick={() => navigate('/')} className="back-home-btn">Back to Home</button>
+      <button onClick={() => navigate('/')} className="restaurant-back-home-btn">Back to Home</button>
     </div>
   );
 
   return (
-    <div className='restaurant-page'>
-      {/* Fixed Header on Scroll */}
-      <div className={`fixed-header ${isScrolled ? 'visible' : ''}`}>
-        <div className="header-content">
-          <button className="back-button" onClick={() => navigate(-1)}><ArrowBackIosIcon fontSize="small" /></button>
-          <h3>{restaurant.name}</h3>
-        </div>
-      </div>
-
-      {/* Header */}
-      <div className="restaurant-header">
-        <button className="back-button" onClick={() => navigate(-1)}><ArrowBackIosIcon fontSize="small" /></button>
-        <div className="search-bar">
-          <SearchIcon className="search-icon" />
-          <input
-            type="text"
-            placeholder="Search within menu"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-        <div className="header-actions">
-          <button className="icon-btn" onClick={() => setIsFavorite(!isFavorite)}>
-            {isFavorite ? <FavoriteIcon className="favorite-icon" /> : <FavoriteBorderIcon />}
-          </button>
-        </div>
-      </div>
-
-      {/* Delivery Toggle */}
-      <div className="delivery-toggle">
-        <button className={`toggle-btn ${deliveryMode === 'delivery' ? 'active' : ''}`} onClick={() => setDeliveryMode('delivery')}>
-          <span>Delivery</span>
-          {deliveryMode === 'delivery' && <div className="active-indicator"></div>}
-        </button>
-        {restaurant.hasDining && (
-          <button className={`toggle-btn ${deliveryMode === 'dining' ? 'active' : ''}`} onClick={() => setDeliveryMode('dining')}>
-            <span>Dining</span>
-            {deliveryMode === 'dining' && <div className="active-indicator"></div>}
-          </button>
-        )}
-      </div>
-
-      {/* Hero Section */}
-      <div className="restaurant-hero">
-        <div className="restaurant-image-gallery">
-          <img src={restaurant.images[currentImageIndex]} alt={restaurant.name} className="gallery-image" />
-          {restaurant.images.length > 1 && (
-            <>
-              <button className="gallery-nav prev" onClick={prevImage}><ArrowBackIosIcon fontSize="small" /></button>
-              <button className="gallery-nav next" onClick={nextImage}><ArrowBackIosIcon fontSize="small" style={{ transform: 'rotate(180deg)' }} /></button>
-              <div className="gallery-indicator">
-                {restaurant.images.map((_, index) => (
-                  <span key={index} className={index === currentImageIndex ? 'active' : ''} />
-                ))}
-              </div>
-            </>
-          )}
-          <div className="image-overlay"></div>
-        </div>
-        <div className="restaurant-info">
-          <div onClick={handleRestaurantInfoClick} className="info-link">
-            <h1>{restaurant.name}<InfoIcon className="info-icon" /></h1>
+    <div className='restaurant-details-page'>
+      <>
+        <div className="restaurant-details-header">
+          <button className="restaurant-back-button" onClick={() => navigate(-1)}><ArrowBackIosIcon fontSize="small" /></button>
+          <div className="restaurant-search-bar">
+            <SearchIcon className="restaurant-search-icon" />
+            <input
+              type="text"
+              placeholder="Search within menu"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
-          <p className="cuisine-type">{restaurant.cuisine}</p>
-          <p className="location"><LocationOnIcon fontSize="small" /> {restaurant.location}</p>
-          <div className="rating">
-            <div className="rating-badge">
-              <StarIcon className="star-icon" />
+          <div className="restaurant-header-actions">
+            <button className="restaurant-icon-btn" onClick={() => setIsFavorite(!isFavorite)}>
+              {isFavorite ? <FavoriteIcon className="restaurant-favorite-icon" /> : <FavoriteBorderIcon />}
+            </button>
+          </div>
+        </div>
+
+        <div className="restaurant-delivery-toggle">
+          <button
+            className={`restaurant-toggle-btn ${deliveryMode === 'delivery' ? 'restaurant-toggle-active' : ''}`}
+            onClick={() => setDeliveryMode('delivery')}
+          >
+            <span className='delivery-span'>Delivery</span>
+          </button>
+          {restaurant.diningAvailability && (
+            <button
+              className={`restaurant-toggle-btn dining-toggle-btn ${deliveryMode === 'dining' ? 'restaurant-toggle-active' : ''}`}
+              onClick={() => setDeliveryMode('dining')}
+            >
+              <span className='dining-span'>Dining</span>
+            </button>
+          )}
+          {(deliveryMode === 'dining' && restaurant.diningAvailability) && (
+            <div className="restaurant-dining-info dining-cta">
+              <Link to={`/table-booking/${id}`} className="restaurant-book-table-btn">Book a Table</Link>
+            </div>
+          )}
+        </div>
+
+        <div className="restaurant-hero-section">
+          {restaurant.images.length > 0 && (
+            <div className="restaurant-image-gallery">
+              <div className="gallery-center-wrapper">
+                {restaurant.images.length > 1 && (
+                  <button className="restaurant-gallery-nav restaurant-gallery-prev" onClick={prevImage}>
+                    <ArrowBackIosIcon fontSize="small" />
+                  </button>
+                )}
+
+                {(() => {
+                  const currentMedia = restaurant.images[currentImageIndex];
+                  if (typeof currentMedia === "string" &&
+                    (currentMedia.endsWith(".mp4") ||
+                      currentMedia.endsWith(".webm") ||
+                      currentMedia.endsWith(".ogg"))) {
+                    return (
+                      <video
+                        src={currentMedia}
+                        className="restaurant-gallery-media"
+                        controls
+                        autoPlay={false}
+                        muted
+                        loop
+                      />
+                    );
+                  } else {
+                    return (
+                      <img
+                        src={currentMedia}
+                        alt={restaurant.name}
+                        className="restaurant-gallery-media"
+                      />
+                    );
+                  }
+                })()}
+
+                {restaurant.images.length > 1 && (
+                  <button className="restaurant-gallery-nav restaurant-gallery-next" onClick={nextImage}>
+                    <ArrowBackIosIcon fontSize="small" className="gallery-next-icon" />
+                  </button>
+                )}
+              </div>
+              {restaurant.images.length > 1 && (
+                <div className="restaurant-gallery-indicator">
+                  {restaurant.images.map((_, index) => (
+                    <span
+                      key={index}
+                      className={index === currentImageIndex ? "restaurant-indicator-active" : ""}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          {restaurant.images.length > 0 && <div className="restaurant-image-overlay"></div>}
+        </div>
+        <div className="restaurant-info-section">
+          <div onClick={handleRestaurantInfoClick} className="restaurant-info-link">
+            <h1>{restaurant.name}<InfoIcon className="restaurant-info-icon" /></h1>
+          </div>
+          <p className="restaurant-cuisine-type">{(restaurant.cuisine || []).join(", ")}</p>
+          <p className="restaurant-location"><LocationOnIcon fontSize="small" /> {restaurant.location}</p>
+          <div className="restaurant-rating">
+            <div className="restaurant-rating-badge">
+              <StarIcon className="restaurant-star-icon" />
               <span>{restaurant.rating}</span>
             </div>
-            <span className="rating-count">({restaurant.ratingCount} ratings)</span>
+            <span className="restaurant-rating-count">({restaurant.ratingCount} ratings)</span>
           </div>
           {deliveryMode === 'delivery' ? (
-            <div className="delivery-info">
+            <div className="restaurant-delivery-info">
               <span><ScheduleIcon fontSize="small" /> {restaurant.deliveryTime}</span>
               <span>• {restaurant.distance}</span>
             </div>
-          ) : (
-            restaurant.hasDining && (
-              <div className="dining-info">
-                <Link to={`/table-booking/${id}`} className="book-table-btn">Book a Table</Link>
-              </div>
-            )
+          ) : null}
+        </div>
+
+        <div className="restaurant-about-section">
+          <h3>About {restaurant.name}</h3>
+          <p className={`restaurant-description ${showFullDescription['restaurant'] ? 'restaurant-description-expanded' : ''}`}>
+            {restaurant.description}
+          </p>
+          {restaurant.description.length > 150 && (
+            <button
+              className="restaurant-read-more-btn"
+              onClick={() => toggleDescription('restaurant')}
+            >
+              {showFullDescription['restaurant'] ? 'Read Less' : 'Read More'}
+            </button>
           )}
         </div>
-      </div>
 
-      {/* About Section */}
-      <div className="about-section">
-        <h3>About {restaurant.name}</h3>
-        <p className={`restaurant-description ${showFullDescription['restaurant'] ? 'expanded' : ''}`}>
-          {restaurant.description}
-        </p>
-        {restaurant.description.length > 150 && (
-          <button 
-            className="read-more-btn" 
-            onClick={() => toggleDescription('restaurant')}
-          >
-            {showFullDescription['restaurant'] ? 'Read Less' : 'Read More'}
-          </button>
-        )}
-      </div>
+        <div className="restaurant-offers-section">
+          <div className="restaurant-section-header">
+            <LocalOfferIcon className="restaurant-section-icon" />
+            <h3>Offers</h3>
+          </div>
+          <div className="restaurant-offer-tag"><LocalOfferIcon className="restaurant-offer-icon" /><span>Free Delivery</span></div>
+          <div className="restaurant-offers-list">
+            {restaurant.offers.map((offer, index) => (
+              <div key={index} className="restaurant-offer-item">
+                <span className="restaurant-offer-icon">{offer.icon}</span>
+                <span>{offer.text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
 
-      {/* Offers */}
-      <div className="offers-section">
-        <div className="section-header">
-          <LocalOfferIcon className="section-icon" />
-          <h3>Offers</h3>
+        <div className="restaurant-group-order-banner">
+          <div className="restaurant-group-icon-container">
+            <GroupIcon className="restaurant-group-icon" />
+          </div>
+          <div className="restaurant-group-order-info">
+            <h4>Start group order</h4>
+          </div>
+          <button className="restaurant-start-group-btn">Start</button>
         </div>
-        <div className="offer-tag"><LocalOfferIcon className="offer-icon" /><span>Free Delivery</span></div>
-        <div className="offers-list">
-          {restaurant.offers.map((offer, index) => (
-            <div key={index} className="offer-item">
-              <span className="offer-icon">{offer.icon}</span>
-              <span>{offer.text}</span>
-            </div>
-          ))}
-        </div>
-      </div>
 
-      {/* Group Order */}
-      <div className="group-order-banner">
-        <div className="group-icon-container">
-          <GroupIcon className="group-icon" />
+        <div className="restaurant-tabs-container">
+          <div className="restaurant-tabs">
+            <button className={`restaurant-tab ${activeTab === 'menu' ? 'restaurant-tab-active' : ''}`} onClick={() => setActiveTab('menu')}>
+              <RestaurantIcon className="restaurant-tab-icon" />
+              <span>Menu</span>
+              <div className="restaurant-tab-indicator"></div>
+            </button>
+            <button className={`restaurant-tab ${activeTab === 'reviews' ? 'restaurant-tab-active' : ''}`} onClick={() => setActiveTab('reviews')}>
+              <RateReviewIcon className="restaurant-tab-icon" />
+              <span>Reviews</span>
+              <div className="restaurant-tab-indicator"></div>
+            </button>
+          </div>
         </div>
-        <div className="group-order-info">
-          <h4>Start group order</h4>
-        </div>
-        <button className="start-group-btn">Start</button>
-      </div>
 
-      {/* Tabs */}
-      <div className="tabs-container">
-        <div className="tabs">
-          <button className={`tab ${activeTab === 'menu' ? 'active' : ''}`} onClick={() => setActiveTab('menu')}>
-            <RestaurantIcon className="tab-icon" />
-            <span>Menu</span>
-            <div className="tab-indicator"></div>
-          </button>
-          <button className={`tab ${activeTab === 'reviews' ? 'active' : ''}`} onClick={() => setActiveTab('reviews')}>
-            <RateReviewIcon className="tab-icon" />
-            <span>Reviews</span>
-            <div className="tab-indicator"></div>
-          </button>
-        </div>
-      </div>
-
-      {/* Menu */}
-      {activeTab === 'menu' && (
-        <div className="menu-section">
-          <div className="menu-columns">
-            <div className="categories-column">
-              {menuData.categories.map(category => (
-                <div 
-                  key={category.name} 
-                  className={`category-item ${selectedCategory === category.name ? 'active' : ''}`}
-                  onClick={() => setSelectedCategory(category.name)}
-                >
-                  {category.name}
-                  {selectedCategory === category.name && <div className="category-indicator"></div>}
-                </div>
-              ))}
-            </div>
-            <div className="items-column">
-              {displayCategories.map(category => (
-                <div key={category.name} className="category-items">
-                  <h3 className="category-title">{category.name}</h3>
-                  <p className="category-description">{category.description}</p>
-                  {category.items.map(item => (
-                    <div key={item.name} className="menu-item" onClick={() => toggleDescription(item.name)}>
-                      <div className="item-details">
-                        <div className="item-type">
-                          {item.type === 'veg' ? 
-                           <img src="/Icons/veg.png" alt="Veg" className="veg-icon" /> :
-                           <img src="/Icons/non veg.png" alt="Non-Veg" className="non-veg-icon" />
-                          }
-                        </div>
-                        <div className="item-text">
-                          <h4>{item.name}</h4>
-                          {item.highlyReordered && <div className="highlight-tag">Popular</div>}
-                          <p className="item-price">₹{item.price}</p>
-                          <p className={`item-description ${showFullDescription[item.name] ? 'expanded' : ''}`}>
+        {activeTab === 'menu' && (
+          <div className="restaurant-menu-section">
+            <div className="restaurant-menu-columns">
+              <div className="restaurant-categories-column">
+                {menuData.categories.map(category => (
+                  <div
+                    key={category.name}
+                    className={`restaurant-category-item ${selectedCategory === category.name ? 'restaurant-category-active' : ''}`}
+                    onClick={() => setSelectedCategory(category.name)}
+                  >
+                    {category.name}
+                    {selectedCategory === category.name && <div className="restaurant-category-indicator"></div>}
+                  </div>
+                ))}
+              </div>
+              <div className="restaurant-items-column">
+                {displayCategories.map(category => (
+                  <div key={category.name} className="restaurant-category-items">
+                    <h3 className="restaurant-category-title">{category.name}</h3>
+                    <p className="restaurant-category-description">{category.description}</p>
+                    {category.items.map(item => (
+                      <div key={item.name} className="restaurant-menu-item" onClick={() => toggleDescription(item.name)}>
+                        <div className="restaurant-item-details">
+                          <div className="restaurant-item-type">
+                            {renderFoodTypeIcon(item.type)}
+                            <h4 className="restaurant-item-name">{item.name}</h4>
+                            {item.highlyReordered && <div className="restaurant-highlight-tag">Popular</div>}
+                          </div>
+                          <p className="restaurant-item-price">₹{item.price}</p>
+                          <p className={`restaurant-item-description ${showFullDescription[item.name] ? 'restaurant-description-expanded' : ''}`}>
                             {item.description}
                           </p>
                           {item.description.length > 80 && (
-                            <button 
-                              className="read-more-btn small" 
+                            <button
+                              className="restaurant-read-more-btn restaurant-read-more-small"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 toggleDescription(item.name);
@@ -371,127 +442,106 @@ const RestaurantDetails = () => {
                             </button>
                           )}
                         </div>
+                        <div className="restaurant-item-actions">
+                          {item.image && <img src={item.image} alt={item.name} className="restaurant-item-image" />}
+                          {renderCartButton(item)}
+                        </div>
                       </div>
-                      <div className="item-actions">
-                        {item.image && <img src={item.image} alt={item.name} className="item-image" />}
-                        {deliveryMode === 'delivery' && renderCartButton(item)}
-                        {deliveryMode === 'dining' && restaurant.hasDining && (
-                          <Link to={`/table-booking/${id}`}>
-                            <button className="book-table-btn">Book Table</button>
-                          </Link>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Reviews */}
-      {activeTab === 'reviews' && (
-        <div className="reviews-section">
-          <div className="overall-rating">
-            <div className="rating-circle">
-              <StarIcon className="big-star" />
-              <span>{restaurant.rating}</span>
-            </div>
-            <p>Based on {restaurant.reviewCount || 0} reviews</p>
-          </div>
-          <div className="review-filters">
-            <button className="filter-btn active">All</button>
-            <button className="filter-btn">5 Star</button>
-            <button className="filter-btn">4 Star</button>
-            <button className="filter-btn">3 Star</button>
-            <button className="filter-btn">2 Star</button>
-            <button className="filter-btn">1 Star</button>
-          </div>
-          <div className="review-list">
-            {restaurant.reviews?.length > 0 ? (
-              restaurant.reviews.map(review => (
-                <div key={review.id} className="review-item">
-                  <div className="review-header">
-                    <div className="reviewer">
-                      <img src={review.userImage || "/default-user.png"} alt={review.userName} />
-                      <div>
-                        <span className="reviewer-name">{review.userName}</span>
-                        <span className="review-date">{review.date}</span>
-                      </div>
-                    </div>
-                    <div className="review-rating">
-                      <StarIcon className="small-star" />
-                      <span>{review.rating}</span>
-                    </div>
+                    ))}
                   </div>
-                  <p className="review-text">{review.text}</p>
-                  <div className="review-actions">
-                    <button className="like-btn">Helpful</button>
-                    <button className="comment-btn">Comment</button>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="no-reviews">
-                <StarIcon className="empty-star" />
-                <h4>No reviews yet</h4>
-                <p>Be the first to review this restaurant</p>
-                <button className="write-review-btn">Write a Review</button>
+                ))}
               </div>
-            )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Cart Summary */}
-      {getTotalItems() > 0 && (
-        <div className="cart-summary slide-up">
-          <div className="cart-total">
-            <span className="item-count">{getTotalItems()} {getTotalItems() === 1 ? 'ITEM' : 'ITEMS'}</span>
-            <span className="total-price">₹{getTotalPrice()}</span>
-            <span className="view-cart" onClick={() => {/* Navigate to cart */}}>View Cart</span>
+        {activeTab === 'reviews' && (
+          <div className="restaurant-reviews-section">
+            <div className="restaurant-overall-rating">
+              <div className="restaurant-rating-circle">
+                <StarIcon className="restaurant-big-star" />
+                <span>{restaurant.rating}</span>
+              </div>
+              <p>Based on {restaurant.ratingCount || 0} reviews</p>
+            </div>
+            <div className="restaurant-review-filters">
+              <button className="restaurant-filter-btn restaurant-filter-active">All</button>
+              <button className="restaurant-filter-btn">5 Star</button>
+              <button className="restaurant-filter-btn">4 Star</button>
+              <button className="restaurant-filter-btn">3 Star</button>
+              <button className="restaurant-filter-btn">2 Star</button>
+              <button className="restaurant-filter-btn">1 Star</button>
+            </div>
+            <div className="restaurant-review-list">
+              {restaurant.reviews?.length > 0 ? (
+                restaurant.reviews.map(review => (
+                  <div key={review.id} className="restaurant-review-item">
+                    <div className="restaurant-review-header">
+                      <div className="restaurant-reviewer">
+                        <img src={review.userImage || "/default-user.png"} alt={review.userName} />
+                        <div>
+                          <span className="restaurant-reviewer-name">{review.userName}</span>
+                          <span className="restaurant-review-date">{review.date}</span>
+                        </div>
+                      </div>
+                      <div className="restaurant-review-rating">
+                        <StarIcon className="restaurant-small-star" />
+                        <span>{review.rating}</span>
+                      </div>
+                    </div>
+                    <p className="restaurant-review-text">{review.text}</p>
+                    <div className="restaurant-review-actions">
+                      <button className="restaurant-like-btn">Helpful</button>
+                      <button className="restaurant-comment-btn">Comment</button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="restaurant-no-reviews">
+                  <StarIcon className="restaurant-empty-star" />
+                  <h4>No reviews yet</h4>
+                  <p>Be the first to review this restaurant</p>
+                  <button className="restaurant-write-review-btn">Write a Review</button>
+                </div>
+              )}
+            </div>
           </div>
-          <div className="cart-buttons">
-            {deliveryMode === 'delivery' ? (
-              <button className="checkout-btn">PROCEED TO CHECKOUT</button>
-            ) : (
-              <Link to={`/table-booking/${id}`}>
-                <button className="book-table-btn">BOOK TABLE</button>
-              </Link>
-            )}
-          </div>
-        </div>
-      )}
+        )}
 
-      {/* Book Table Only */}
-      {getTotalItems() === 0 && deliveryMode === 'dining' && restaurant.hasDining && (
-        <div className="cart-summary slide-up">
-          <Link to={`/table-booking/${id}`}>
-            <button className="book-table-btn full-width">BOOK TABLE</button>
-          </Link>
-        </div>
-      )}
+        {getTotalItems() > 0 && (
+          <div className="restaurant-cart-summary">
+            <div className="restaurant-cart-total">
+              <span className="restaurant-item-count">{getTotalItems()} {getTotalItems() === 1 ? 'ITEM' : 'ITEMS'}</span>
+              <span className="restaurant-total-price">₹{getTotalPrice()}</span>
+              <span className="restaurant-view-cart" onClick={() => { navigate('/foodorders') }}>View Cart</span>
+            </div>
+            <div className="restaurant-cart-buttons">
+              {deliveryMode === 'delivery' ? (
+                <button className="restaurant-checkout-btn">PROCEED TO CHECKOUT</button>
+              ) : null}
+            </div>
+          </div>
+        )}
 
-      {/* Footer */}
-      <div className="restaurant-footer">
-        <div className="footer-content">
-          <div className="footer-section">
-            <h4>About {restaurant.name}</h4>
-            <p>Part of Bite Bliss Plastic-Free Future Program</p>
-            <p>FSSAI License No: {restaurant.fssaiNo}</p>
+        <div className="restaurant-footer-section">
+          <div className="restaurant-footer-content">
+            <div className="restaurant-footer-part">
+              <h4>About {restaurant.name}</h4>
+              <p>Part of Bite Bliss Plastic-Free Future Program</p>
+              <p>FSSAI License No: {restaurant.fssaiNo}</p>
+            </div>
+            <div className="restaurant-footer-part">
+              <h4>Menu Information</h4>
+              <p>• Menu items, nutritional information and prices are set directly by the restaurant</p>
+              <p>• Nutritional information values displayed are indicative</p>
+              <p>• An average active adult requires 2,000 kcal energy per day</p>
+            </div>
           </div>
-          <div className="footer-section">
-            <h4>Menu Information</h4>
-            <p>• Menu items, nutritional information and prices are set directly by the restaurant</p>
-            <p>• Nutritional information values displayed are indicative</p>
-            <p>• An average active adult requires 2,000 kcal energy per day</p>
+          <div className="restaurant-footer-bottom">
+            <p>© 2025 Bite Bliss. All rights reserved.</p>
           </div>
         </div>
-        <div className="footer-bottom">
-          <p>© 2025 Bite Bliss. All rights reserved.</p>
-        </div>
-      </div>
+      </>
     </div>
   );
 };
