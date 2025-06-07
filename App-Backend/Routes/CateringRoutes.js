@@ -12,6 +12,7 @@ import {
   acceptBooking,
   cancelBooking,
   completeBooking,
+  chefArrival,
 } from "../Controllers/CorporateCateringController.js";
 
 import { cateringBookingValidation } from "../Middlewares/Validation.js"; 
@@ -66,5 +67,7 @@ ChefRouter.put('/cancelbooking', checkLogin, checkRole(['user']), cancelBooking)
 
 // Complete Chef Booking
 ChefRouter.put('/completechefbooking', checkLogin, checkRole(['user']), completeBooking);
+
+ChefRouter.put('/arrived', checkLogin, checkRole(['chef']), chefArrival);
 
 export default ChefRouter;

@@ -1,5 +1,6 @@
 import { body } from 'express-validator';
 
+
 // Register Validation
 const ValidationMiddleware = [
   body('name')
@@ -152,41 +153,36 @@ const DiningValidation = [
 
 export { DiningValidation };
 
-// Restaurant Validation
-export const restaurantValidation = [
-  body('name')
-    .notEmpty().withMessage("Restaurant name is required"),
+// Restaurant Update Validation
 
-  body('image')
-    .notEmpty().withMessage("Image URL is required"),
+export const restaurantUpdateValidation = [
+  body('name').optional().notEmpty().withMessage("Restaurant name cannot be empty"),
+  body('image').optional().notEmpty().withMessage("Image URL cannot be empty"),
+  body('time').optional().notEmpty().withMessage("Opening time cannot be empty"),
+  body('distance').optional().notEmpty().withMessage("Distance cannot be empty"),
+  body('contact').optional().notEmpty().withMessage("Contact info cannot be empty"),
+  body('gstNumber').optional().notEmpty().withMessage("GST Number cannot be empty"),
+  body('legalName').optional().notEmpty().withMessage("Legal name cannot be empty"),
+  body('fssaiNumber').optional().notEmpty().withMessage("FSSAI Number cannot be empty"),
+  body('address').optional().notEmpty().withMessage("Address cannot be empty"),
+  body('cuisine').optional().isArray({ min: 1 }).withMessage("At least one cuisine is required"),
+  body('restaurantowner').optional().notEmpty().withMessage("Owner ID cannot be empty").isMongoId().withMessage("Must be a valid Mongo ID"),
+];
 
-  body('time')
-    .notEmpty().withMessage("Opening time is required"),
+// Restaurant Create Validation
 
-  body('distance')
-    .notEmpty().withMessage("Distance is required"),
-
-  body('contact')
-    .notEmpty().withMessage("Contact info is required"),
-
-  body('gstNumber')
-    .notEmpty().withMessage("GST Number is required"),
-
-  body('legalName')
-    .notEmpty().withMessage("Legal name is required"),
-
-  body('fssaiNumber')
-    .notEmpty().withMessage("FSSAI Number is required"),
-
-  body('address')
-    .notEmpty().withMessage("Address is required"),
-
-  body('cuisine')
-    .isArray({ min: 1 }).withMessage("At least one cuisine is required"),
-
-  body('restaurantowner')
-    .notEmpty().withMessage("Owner ID is required")
-    .isMongoId().withMessage("Must be a valid Mongo ID"),
+export const restaurantCreateValidation = [
+  body('name').notEmpty().withMessage("Restaurant name is required"),
+  body('image').notEmpty().withMessage("Image URL is required"),
+  body('time').notEmpty().withMessage("Opening time is required"),
+  body('distance').notEmpty().withMessage("Distance is required"),
+  body('contact').notEmpty().withMessage("Contact info is required"),
+  body('gstNumber').notEmpty().withMessage("GST Number is required"),
+  body('legalName').notEmpty().withMessage("Legal name is required"),
+  body('fssaiNumber').notEmpty().withMessage("FSSAI Number is required"),
+  body('address').notEmpty().withMessage("Address is required"),
+  body('cuisine').isArray({ min: 1 }).withMessage("At least one cuisine is required"),
+  body('restaurantowner').notEmpty().withMessage("Owner ID is required").isMongoId().withMessage("Must be a valid Mongo ID"),
 ];
 
 

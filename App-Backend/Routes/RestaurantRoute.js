@@ -9,8 +9,8 @@ import {
 
 import checkLogin from '../Middlewares/CheckLogin.js';
 import checkRole from '../Middlewares/CheckRole.js';
-import { restaurantValidation } from '../Middlewares/Validation.js';  
 import { validationResult } from 'express-validator';  
+import { restaurantCreateValidation, restaurantUpdateValidation } from '../Middlewares/Validation.js';
 
 const restaurantRouter = express.Router();
 
@@ -18,7 +18,6 @@ const restaurantRouter = express.Router();
 function validateRequest(req, res, next) {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    // Return first error or all errors as you prefer
     return res.status(400).json({ errors: errors.array() });
   }
   next();
@@ -29,7 +28,7 @@ restaurantRouter.post(
   '/',
   checkLogin,
   checkRole(['restaurantowner']),
-  restaurantValidation,
+  restaurantCreateValidation,
   validateRequest,
   createRestaurant
 );
@@ -45,7 +44,7 @@ restaurantRouter.put(
   '/updaterestaurant',
   checkLogin,
   checkRole(['restaurantowner']),
-  restaurantValidation,
+  restaurantUpdateValidation,
   validateRequest,
   updateRestaurant
 );

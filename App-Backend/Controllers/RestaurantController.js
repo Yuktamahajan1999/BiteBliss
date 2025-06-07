@@ -6,7 +6,7 @@ export const createRestaurant = async (req, res) => {
   try {
     const data = req.body;
 
-    const requiredFields = ['name', 'image', 'time', 'distance', 'contact', 'gstNumber', 'legalName', 'fssaiNumber', 'cuisine', 'address', 'restaurantowner', 'openHours'];
+    const requiredFields = ['name', 'image', 'time', 'distance', 'contact', 'gstNumber', 'legalName', 'fssaiNumber', 'cuisine', 'address', 'restaurantowner', 'openHours', 'menu'];
     for (let field of requiredFields) {
       if (!data[field]) return res.status(400).json({ error: `${field} is required` });
     }
@@ -19,6 +19,14 @@ export const createRestaurant = async (req, res) => {
 
     if (!mongoose.Types.ObjectId.isValid(data.restaurantowner)) {
       return res.status(400).json({ error: "Invalid restaurantowner ID" });
+    }
+
+    if (!Array.isArray(data.menu)) {
+      return res.status(400).json({ error: "menu must be an array" });
+    }
+
+    if (data.menu.length === 0) {
+      return res.status(400).json({ error: "menu must have at least one category" });
     }
 
     const newRestaurant = new Restaurant(data);
@@ -99,6 +107,39 @@ export const deleteRestaurant = async (req, res) => {
     }
 
     res.status(200).json({ message: "Restaurant deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Review section
+export const addReview = async (req, res) => {
+  try {
+    const { id } = req.query;
+    const { userName, rating, text } = req.body; 
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: "Invalid restaurant ID" });
+    }
+    if (!userName || !rating || !text) {
+      return res.status(400).json({ error: "userName, rating, and text are required" });
+    }
+
+    const restaurant = await Restaurant.findById(id);
+    if (!restaurant) {
+      return res.status(404).json({ error: "Restaurant not found" });
+    }
+
+    restaurant.reviews.push({
+      userName,
+      rating,
+      text,
+      date: new Date().toISOString()
+    });
+
+    await restaurant.save();
+
+    res.status(200).json({ message: "Review added", reviews: restaurant.reviews });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

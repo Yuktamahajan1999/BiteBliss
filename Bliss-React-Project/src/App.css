@@ -13219,7 +13219,6 @@ input:focus:invalid {
 
 .restaurant-gallery-nav {
   background: white;
-  border: 1px solid #ff6b6b;
   border-radius: 50%;
   width: 40px;
   height: 40px;
@@ -13383,6 +13382,10 @@ input:focus:invalid {
   padding: 0;
 }
 
+.restaurant-read-more-btn:focus {
+  outline: none;
+}
+
 .restaurant-offers-section {
   padding: 20px;
   background-color: white;
@@ -13499,6 +13502,10 @@ input:focus:invalid {
 .restaurant-tabs {
   display: flex;
   border-bottom: 1px solid #eee;
+}
+
+.restaurant-tab:focus {
+  outline: none;
 }
 
 .restaurant-tab {
@@ -14155,6 +14162,7 @@ input:focus:invalid {
     line-height: 1.5;
   }
 }
+
 
 /* Footer section */
 /* Explore section */

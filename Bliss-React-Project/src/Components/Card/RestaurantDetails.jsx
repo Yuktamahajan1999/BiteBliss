@@ -2,9 +2,6 @@
 import { useEffect, useReducer, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import menuData from '../data';
-
-// Icons
 import StarIcon from '@mui/icons-material/Star';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
@@ -72,7 +69,6 @@ const RestaurantDetails = () => {
 
   const initialCartState = {};
 
-
   const [cart, dispatch] = useReducer(cartReducer, initialCartState);
 
   useEffect(() => {
@@ -86,6 +82,8 @@ const RestaurantDetails = () => {
           images.push(...res.data.photos);
         }
 
+        const menu = res.data.menu || [];
+
         setRestaurant({
           ...res.data,
           images: images.length > 0 ? images : ["/default-restaurant.jpg"],
@@ -95,22 +93,23 @@ const RestaurantDetails = () => {
             { text: "Frequently reordered", icon: <LocalOfferIcon /> },
             { text: "Special discounts for customers", icon: <LocalOfferIcon /> }
           ],
-          deliveryTime: res.data.time || "20-30 mins",
-          distance: res.data.distance || "2 km",
-          fssaiNo: res.data.fssaiNumber || "10924015000015",
+          deliveryTime: res.data.deliveryTime || res.data.time || "",
+          distance: res.data.distance || "",
+          fssaiNo: res.data.fssaiNumber || "",
           description:
             res.data.description ||
             "A premium dining experience with a focus on fresh, locally-sourced ingredients. Our chefs craft each dish with care and attention to detail, ensuring every bite is memorable.",
-          diningAvailability: res.data.diningAvailability ?? res.data.hasDining ?? false,
+          diningAvailability: res.data.diningAvailability ?? false,
           location: res.data.address || "",
           rating: res.data.rating || 0,
           ratingCount: res.data.ratingCount || 0,
           cuisine: res.data.cuisine || [],
           reviews: res.data.reviews || [],
+          menu: menu
         });
 
-        if (menuData.categories.length > 0) {
-          setSelectedCategory(menuData.categories[0].name);
+        if (menu.length > 0) {
+          setSelectedCategory(menu[0].name);
         }
       } catch (error) {
         console.error("Error fetching restaurant:", error);
@@ -143,15 +142,14 @@ const RestaurantDetails = () => {
     dispatch({ type: 'REMOVE_ITEM', payload: { name: itemName } });
   };
 
-
   const getTotalItems = () => Object.values(cart).reduce((sum, item) => sum + item.quantity, 0);
   const getTotalPrice = () => Object.entries(cart).reduce((sum, [, item]) => sum + (item.quantity * item.price), 0);
 
-  const filteredCategories = menuData.categories.map(category => ({
+  const filteredCategories = (restaurant?.menu ?? []).map(category => ({
     ...category,
     items: category.items.filter(item =>
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.description.toLowerCase().includes(searchQuery.toLowerCase())
+      item.description?.toLowerCase().includes(searchQuery.toLowerCase())
     )
   })).filter(category => category.items.length > 0);
 
@@ -402,7 +400,7 @@ const RestaurantDetails = () => {
           <div className="restaurant-menu-section">
             <div className="restaurant-menu-columns">
               <div className="restaurant-categories-column">
-                {menuData.categories.map(category => (
+                {(restaurant.menu || []).map(category => (
                   <div
                     key={category.name}
                     className={`restaurant-category-item ${selectedCategory === category.name ? 'restaurant-category-active' : ''}`}
@@ -417,7 +415,7 @@ const RestaurantDetails = () => {
                 {displayCategories.map(category => (
                   <div key={category.name} className="restaurant-category-items">
                     <h3 className="restaurant-category-title">{category.name}</h3>
-                    <p className="restaurant-category-description">{category.description}</p>
+                    <p className="restaurant-category-description">{category.description || ''}</p>
                     {category.items.map(item => (
                       <div key={item.name} className="restaurant-menu-item" onClick={() => toggleDescription(item.name)}>
                         <div className="restaurant-item-details">
@@ -430,7 +428,7 @@ const RestaurantDetails = () => {
                           <p className={`restaurant-item-description ${showFullDescription[item.name] ? 'restaurant-description-expanded' : ''}`}>
                             {item.description}
                           </p>
-                          {item.description.length > 80 && (
+                          {item.description && item.description.length > 80 && (
                             <button
                               className="restaurant-read-more-btn restaurant-read-more-small"
                               onClick={(e) => {
@@ -443,7 +441,13 @@ const RestaurantDetails = () => {
                           )}
                         </div>
                         <div className="restaurant-item-actions">
-                          {item.image && <img src={item.image} alt={item.name} className="restaurant-item-image" />}
+                          {item.image && (
+                            <img
+                              src={item.image}
+                              alt={item.name}
+                              className="restaurant-item-image"
+                            />
+                          )}
                           {renderCartButton(item)}
                         </div>
                       </div>
@@ -474,11 +478,10 @@ const RestaurantDetails = () => {
             </div>
             <div className="restaurant-review-list">
               {restaurant.reviews?.length > 0 ? (
-                restaurant.reviews.map(review => (
-                  <div key={review.id} className="restaurant-review-item">
+                restaurant.reviews.map((review, idx) => (
+                  <div key={review.id || idx} className="restaurant-review-item">
                     <div className="restaurant-review-header">
                       <div className="restaurant-reviewer">
-                        <img src={review.userImage || "/default-user.png"} alt={review.userName} />
                         <div>
                           <span className="restaurant-reviewer-name">{review.userName}</span>
                           <span className="restaurant-review-date">{review.date}</span>
