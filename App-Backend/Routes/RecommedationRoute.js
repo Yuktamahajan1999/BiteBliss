@@ -5,7 +5,7 @@ import {
   getRecommendationById,
   updateRecommendation,
   deleteRecommendation,
-  getFriendRecommendations
+  getFrequentOrders
 } from '../Controllers/RecommendationController.js';
 import checkLogin from '../Middlewares/CheckLogin.js';
 
@@ -14,11 +14,11 @@ const Recommendrouter = express.Router();
 // Create a new recommendation
 Recommendrouter.post('/create', checkLogin, createRecommendation);
 
-// Get all recommendations
-Recommendrouter.get('/', getRecommendations);
+// Get all recommendations of logged-in user
+Recommendrouter.get('/', checkLogin, getRecommendations);
 
 // Get a specific recommendation by ID
-Recommendrouter.get('/recommendById', getRecommendationById);
+Recommendrouter.get('/recommendById', checkLogin, getRecommendationById);
 
 // Update an existing recommendation
 Recommendrouter.put('/updateRecommend', checkLogin, updateRecommendation);
@@ -26,7 +26,7 @@ Recommendrouter.put('/updateRecommend', checkLogin, updateRecommendation);
 // Delete a recommendation
 Recommendrouter.delete('/deleteRecommend', checkLogin, deleteRecommendation);
 
-// Get friend recommendations
-Recommendrouter.get('/friends', getFriendRecommendations);
+//Frequent Orders Restaurant
+Recommendrouter.get('/frequent', checkLogin, getFrequentOrders);
 
 export default Recommendrouter;

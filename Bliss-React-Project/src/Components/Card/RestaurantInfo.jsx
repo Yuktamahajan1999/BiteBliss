@@ -15,6 +15,7 @@ import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import axios from 'axios';
+import { toast } from 'react-toastify';
 
 const RestaurantInfo = () => {
   const { id } = useParams();
@@ -32,9 +33,56 @@ const RestaurantInfo = () => {
   const [Restaurant, setRestaurant] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isOpenNow, setIsOpenNow] = useState(true);
 
+  function isRestaurantOpen(openHours) {
+    if (!openHours) return false;
+
+    const days = [
+      "sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"
+    ];
+    const now = new Date();
+    const day = days[now.getDay()];
+    const todayHours = openHours[day];
+
+    if (!todayHours || !todayHours.open || !todayHours.close) return false;
+
+    function parseTime(timeStr) {
+      if (!timeStr) return null;
+
+      const timePart = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+      if (!timePart) return null;
+
+      let hours = parseInt(timePart[1], 10);
+      const minutes = parseInt(timePart[2], 10);
+      const modifier = timePart[3] ? timePart[3].toLowerCase() : null;
+
+      if (modifier === 'pm' && hours !== 12) {
+        hours += 12;
+      } else if (modifier === 'am' && hours === 12) {
+        hours = 0;
+      }
+
+      return { hours, minutes };
+    }
+
+    const openTime = parseTime(todayHours.open);
+    const closeTime = parseTime(todayHours.close);
+
+    if (!openTime || !closeTime) return false;
+
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const openMinutes = openTime.hours * 60 + openTime.minutes;
+    const closeMinutes = closeTime.hours * 60 + closeTime.minutes;
+
+    if (closeMinutes < openMinutes) {
+      return nowMinutes >= openMinutes || nowMinutes < closeMinutes;
+    } else {
+      return nowMinutes >= openMinutes && nowMinutes < closeMinutes;
+    }
+  }
 useEffect(() => {
-  const fetchData = async () => {
+  const getData = async () => {
     try {
       const restaurantRes = await axios.get(
         `http://localhost:8000/restaurant/getRestaurantById?id=${id}`
@@ -48,6 +96,7 @@ useEffect(() => {
           delivery: data.deliveryAvailable,
         });
         setPetAllowed(data.petAllow);
+        setIsOpenNow(isRestaurantOpen(data.openHours));
       } else {
         setRestaurant(null);
         setError('Restaurant not found!');
@@ -56,25 +105,43 @@ useEffect(() => {
 
       let isHiddenForUser = false;
       if (token) {
-        const wishlistRes = await axios.get("http://localhost:8000/wishlist", {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const wishlistIds = wishlistRes.data.wishlist.map(
-          item => item.restaurantId || item._id || item.id
-        );
-        setWishList(wishlistIds);
-        setIsWished(wishlistIds.includes(id));
+        const user = JSON.parse(localStorage.getItem('user'));
+        
+        if (user?.role === 'user') {
+          try {
+            const wishlistRes = await axios.get("http://localhost:8000/wishlist", {
+              headers: { Authorization: `Bearer ${token}` }
+            }).catch(err => {
+              if (err.response?.status === 403 || err.response?.status === 401) {
+                return { data: { wishlist: [] } };
+              }
+              throw err;
+            });
+            const wishlistIds = wishlistRes.data.wishlist.map(
+              item => item.restaurantId || item._id || item.id
+            );
+            setWishList(wishlistIds);
+            setIsWished(wishlistIds.includes(id));
 
-        const hiddenRes = await axios.get("http://localhost:8000/restauranthidden/gethidden", {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        isHiddenForUser = (hiddenRes.data.hiddenRestaurants || []).some(
-          rest => rest._id === id
-        );
+            const hiddenRes = await axios.get("http://localhost:8000/restauranthidden/gethidden", {
+              headers: { Authorization: `Bearer ${token}` }
+            }).catch(err => {
+              if (err.response?.status === 403 || err.response?.status === 401) {
+                return { data: { hiddenRestaurants: [] } };
+              }
+              throw err;
+            });
+            isHiddenForUser = (hiddenRes.data.hiddenRestaurants || []).some(
+              rest => rest._id === id
+            );
+          } catch (err) {
+            console.log(err);
+          }
+        }
       }
       setHideRestaurant(isHiddenForUser);
     } catch (err) {
-      console.error("Error fetching data:", err);
+      console.error(err);
       setRestaurant(null);
       setError('Failed to fetch restaurant details. Please try again later.');
     } finally {
@@ -82,76 +149,130 @@ useEffect(() => {
     }
   };
 
-  fetchData();
+  getData();
 }, [id, token]);
 
-  const toggleWishlist = async () => {
-    if (!token) {
-      alert("Please log in to manage wishlist.");
-      return;
+const toggleWishlist = async () => {
+  const user = JSON.parse(localStorage.getItem('user'));
+  if (!token) {
+    toast.warn("Please sign in to save favorites", {
+      position: "top-center",
+      autoClose: 3000,
+    });
+    return;
+  }
+
+  if (user?.role !== 'user') {
+    toast.info("Only regular users can save favorites", {
+      position: "top-center",
+      autoClose: 3000,
+    });
+    return;
+  }
+
+  try {
+    const config = {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    };
+
+    if (isWished) {
+      await axios.delete("http://localhost:8000/wishlist/removefromwishlist", {
+        ...config,
+        data: { restaurantId: id }
+      });
+      setIsWished(false);
+      setWishList(prev => prev.filter(itemId => itemId !== id));
+      toast.success("Removed from favorites", {
+        position: "top-center",
+        autoClose: 2000,
+      });
+    } else {
+      await axios.post(
+        "http://localhost:8000/wishlist/addtowishlist",
+        { restaurantId: id },
+        config
+      );
+      setIsWished(true);
+      setWishList(prev => [...prev, id]);
+      toast.success("Added to favorites!", {
+        position: "top-center",
+        autoClose: 2000,
+      });
     }
+  } catch (error) {
+    console.error(error);
+    toast.error("Failed to update favorites. Please try again", {
+      position: "top-center",
+      autoClose: 3000,
+    });
+  }
+};
 
-    try {
-      const config = {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      };
+const handleHideRestaurant = async () => {
+  const user = JSON.parse(localStorage.getItem('user'));
+  if (!token) {
+    toast.warn("Please sign in to hide restaurants", {
+      position: "top-center",
+      autoClose: 3000,
+    });
+    return;
+  }
 
-      if (isWished) {
-        await axios.delete("http://localhost:8000/wishlist/removefromwishlist", {
-          ...config,
-          data: { restaurantId: id }
-        });
-        setIsWished(false);
-        setWishList(prev => prev.filter(itemId => itemId !== id));
-      } else {
-        await axios.post(
-          "http://localhost:8000/wishlist/addtowishlist",
-          { restaurantId: id },
-          config
-        );
-        setIsWished(true);
-        setWishList(prev => [...prev, id]);
-      }
-    } catch (error) {
-      console.error("Error updating wishlist:", error);
-      alert("Failed to update wishlist. Please try again.");
-    }
-  };
+  if (user?.role !== 'user') {
+    toast.info("Only regular users can hide restaurants", {
+      position: "top-center",
+      autoClose: 3000,
+    });
+    return;
+  }
 
- const handleHideRestaurant = async () => {
   try {
     await axios.post(
-      "http://localhost:8000/restauranthidden/hide", 
+      "http://localhost:8000/restauranthidden/hide",
       { restaurantId: id },
       {
         headers: { Authorization: `Bearer ${token}` }
       }
     );
     setHideRestaurant(true);
+    toast.success("Restaurant hidden from your view", {
+      position: "top-center",
+      autoClose: 2000,
+    });
   } catch (err) {
-    console.error("Failed to hide restaurant:", err);
-    alert("Failed to hide this restaurant. Please try again.");
+    console.error(err);
+    toast.error("Couldn't hide restaurant. Please try again", {
+      position: "top-center",
+      autoClose: 3000,
+    });
   }
 };
 
 const handleUnhideRestaurant = async () => {
+  const user = JSON.parse(localStorage.getItem('user'));
+  if (user?.role !== 'user') return;
+
   try {
-    await axios.delete("http://localhost:8000/restauranthidden/unhide", { 
+    await axios.delete("http://localhost:8000/restauranthidden/unhide", {
       headers: { Authorization: `Bearer ${token}` },
       data: { restaurantId: id }
     });
     setHideRestaurant(false);
+    toast.success("Restaurant is now visible", {
+      position: "top-center",
+      autoClose: 2000,
+    });
   } catch (err) {
-    console.error("Failed to unhide restaurant:", err);
-    alert("Failed to unhide this restaurant. Please try again.");
+    console.error(err);
+    toast.error("Couldn't unhide restaurant. Please try again", {
+      position: "top-center",
+      autoClose: 3000,
+    });
   }
 };
-
-
-  const restaurant = Restaurant;
 
   if (loading) {
     return <div className="restaurant-info-loading">
@@ -173,7 +294,7 @@ const handleUnhideRestaurant = async () => {
     );
   }
 
-  if (!restaurant) {
+  if (!Restaurant) {
     return (
       <div className="restaurant-info-error">
         <div className="restaurant-info-error-content">
@@ -215,28 +336,28 @@ const handleUnhideRestaurant = async () => {
 
       <div className='restaurant-info-content'>
         <div className='restaurant-info-header'>
-          <h1 className='restaurant-info-name'>{restaurant.name}</h1>
+          <h1 className='restaurant-info-name'>{Restaurant.name}</h1>
 
           <div className='restaurant-info-meta'>
             <span className='restaurant-info-cuisine'>
-              {Array.isArray(restaurant.cuisine)
-                ? restaurant.cuisine.join(', ')
-                : restaurant.cuisine?.split(' ').join(', ')}
+              {Array.isArray(Restaurant.cuisine)
+                ? Restaurant.cuisine.join(', ')
+                : Restaurant.cuisine?.split(' ').join(', ')}
             </span>
 
-            <span className='restaurant-info-price'>{restaurant.price}</span>
-            <span className='restaurant-info-rating'>{restaurant.rating} ★</span>
+            <span className='restaurant-info-price'>{Restaurant.price}</span>
+            <span className='restaurant-info-rating'>{Restaurant.rating} ★</span>
           </div>
 
           <p className='restaurant-info-address'>
-            <PlaceIcon /> {restaurant.address || 'Address not available'}
+            <PlaceIcon /> {Restaurant.address || 'Address not available'}
           </p>
         </div>
 
         <div className='restaurant-info-buttons'>
           <button
             className='restaurant-info-call-btn'
-            onClick={() => window.location.href = `tel:${restaurant.contact || ''}`}
+            onClick={() => window.location.href = `tel:${Restaurant.contact || ''}`}
           >
             <CallIcon />
             <span>Call</span>
@@ -245,7 +366,7 @@ const handleUnhideRestaurant = async () => {
           <button
             className='restaurant-info-directions-btn'
             onClick={() => window.open(
-              `https://www.google.com/maps/search/${encodeURIComponent(restaurant.address || '')}`,
+              `https://www.google.com/maps/search/${encodeURIComponent(Restaurant.address || '')}`,
               '_blank'
             )}
           >
@@ -260,14 +381,19 @@ const handleUnhideRestaurant = async () => {
         </div>
 
         <div className='restaurant-info-status'>
-          <div className={`restaurant-info-status-card ${serviceAvailability.delivery && !isRaining ? 'restaurant-info-active' : ''}`}>
+          <div className={`restaurant-info-status-card ${serviceAvailability.delivery && isOpenNow && !isRaining ? 'restaurant-info-active' : ''}`}>
             <div>
               <h4>Delivery</h4>
               {serviceAvailability.delivery ? (
-                isRaining ? (
+                !isOpenNow ? (
+                  <div className='restaurant-info-unavailable'>
+                    <img src="/Icons/close.png" alt="closed" className='restaurant-info-status-icon' />
+                    <p>Currently not available (Closed).We will be back soon!!</p>
+                  </div>
+                ) : isRaining ? (
                   <div className='restaurant-info-unavailable'>
                     <img src="/Icons/raining.png" alt="heavy-rain" className='restaurant-info-status-icon' />
-                    <p>Sorry, delivery is temporarily paused due to rain. We&apos;ll notify you once its available again.</p>
+                    <p>Sorry, delivery is temporarily paused due to rain.</p>
                   </div>
                 ) : (
                   <div className='restaurant-info-available'>
@@ -284,11 +410,16 @@ const handleUnhideRestaurant = async () => {
             </div>
           </div>
 
-          <div className={`restaurant-info-status-card ${serviceAvailability.dining ? 'restaurant-info-active' : ''}`}>
+          <div className={`restaurant-info-status-card ${serviceAvailability.dining && isOpenNow ? 'restaurant-info-active' : ''}`}>
             <div>
               <h4>Dining</h4>
               {serviceAvailability.dining ? (
-                isRaining ? (
+                !isOpenNow ? (
+                  <div className='restaurant-info-unavailable'>
+                    <img src="/Icons/close.png" alt="closed" className='restaurant-info-status-icon' />
+                    <p>Currently not available (Closed)</p>
+                  </div>
+                ) : isRaining ? (
                   <div className='restaurant-info-unavailable'>
                     <img src="/Icons/close.png" alt="restaurant is closed" className='restaurant-info-status-icon' />
                     <p>Dining is closed due to rain. Please check back later.</p>
@@ -307,11 +438,11 @@ const handleUnhideRestaurant = async () => {
               )}
             </div>
           </div>
-          {serviceAvailability.dining && (
+          {serviceAvailability.dining && isOpenNow && (
             <div className='restaurant-info-active restaurant-info-status-card'>
               <div className="restaurant-info-booking">
                 <h4>Want to dine in?</h4>
-                <Link to={`/tablebooking/${restaurant._id}`} className="restaurant-info-booking-btn">
+                <Link to={`/tablebooking/${Restaurant._id}`} className="restaurant-info-booking-btn">
                   Book a Table
                 </Link>
               </div>
@@ -343,11 +474,11 @@ const handleUnhideRestaurant = async () => {
             <CalendarTodayIcon className="hours-icon" /> Opening Hours
           </h3>
 
-          {restaurant.openHours && typeof restaurant.openHours === 'object' && Object.keys(restaurant.openHours).length > 0 ? (
+          {Restaurant.openHours && typeof Restaurant.openHours === 'object' && Object.keys(Restaurant.openHours).length > 0 ? (
             <div className="hours-container">
               <table className="hours-table">
                 <tbody>
-                  {Object.entries(restaurant.openHours).map(([day, hours]) => (
+                  {Object.entries(Restaurant.openHours).map(([day, hours]) => (
                     <tr key={day} className="hours-row">
                       <td className="hours-day">
                         {day.charAt(0).toUpperCase() + day.slice(1)}
@@ -374,14 +505,13 @@ const handleUnhideRestaurant = async () => {
           )}
         </section>
 
-
         <div className='restaurant-info-divider' />
         <section className="restaurant-info-photos">
           <h3><CollectionsIcon /> Photos</h3>
           <div className="restaurant-info-photos-container">
-            {restaurant.photos?.length > 0 ? (
+            {Restaurant.photos?.length > 0 ? (
               <div className="restaurant-info-photos-scroll">
-                {restaurant.photos.map((photo, index) => (
+                {Restaurant.photos.map((photo, index) => (
                   <img
                     key={index}
                     src={photo}
@@ -419,15 +549,15 @@ const handleUnhideRestaurant = async () => {
         <h4><GavelIcon /> Legal Information</h4>
         <div className='restaurant-info-legal-item'>
           <span><VerifiedIcon /> Legal Name</span>
-          <p>{restaurant.legalName || 'Not provided'}</p>
+          <p>{Restaurant.legalName || 'Not provided'}</p>
         </div>
         <div className='restaurant-info-legal-item'>
           <span><ReceiptIcon /> GST Number</span>
-          <p>{restaurant.gstNumber || 'Not provided'}</p>
+          <p>{Restaurant.gstNumber || 'Not provided'}</p>
         </div>
         <div className='restaurant-info-legal-item'>
           <span><PaymentIcon /> FSSAI License Number</span>
-          <p>{restaurant.fssaiNumber || '265566'}</p>
+          <p>{Restaurant.fssaiNumber || '265566'}</p>
         </div>
       </section>
 

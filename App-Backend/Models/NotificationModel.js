@@ -2,15 +2,15 @@ import mongoose from "mongoose";
 
 let NotificationSchema = new mongoose.Schema({
     sms:{
-        type: String,
+        type: Boolean,
         required: true,
     },
     email: {
-        type: String,
+        type: Boolean,
         required: true,
     },
     push: {
-        type: String,
+        type: Boolean,
         required: true,
     }
 }, { timestamps: true });

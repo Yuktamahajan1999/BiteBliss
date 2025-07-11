@@ -1,29 +1,37 @@
 import express from "express";
 import {
-    createOrderOnTrain,
-    getOrdersByUser,
-    getOrdersByTrainNumber,
-    updateOrderStatus,
-    deleteTrainOrder
+  createOrderOnTrain,
+  getOrdersByUser,
+  getOrdersByTrainNumber,
+  updateOrderStatus,
+  deleteTrainOrder,
+  getTrainOrdersByRestaurant,
+  assignTrainDeliveryPartner,
 } from "../Controllers/OrderOnTrainController.js";
 import CheckLogin from "../Middlewares/CheckLogin.js";
 import CheckRole from "../Middlewares/CheckRole.js";
 
 const TrainOrderrouter = express.Router();
 
-// Create a train order 
+// Create a new train order
 TrainOrderrouter.post("/", CheckLogin, CheckRole(["user"]), createOrderOnTrain);
 
-// Get train orders by user 
+// Get orders placed by a specific user
 TrainOrderrouter.get("/userOrders", CheckLogin, CheckRole(["user"]), getOrdersByUser);
 
-// Get train orders by train number
+// Get train orders using train number
 TrainOrderrouter.get("/trainnumber", CheckLogin, CheckRole(["restaurantowner"]), getOrdersByTrainNumber);
 
-// Update train order status 
+// Get train orders for a specific restaurant
+TrainOrderrouter.get("/getByRestaurant", CheckLogin, CheckRole(["restaurantowner"]), getTrainOrdersByRestaurant);
+
+// Update the status of a train order
 TrainOrderrouter.put("/statusupdate", CheckLogin, CheckRole(["restaurantowner"]), updateOrderStatus);
 
-// Delete a train order 
+// Delete a train order
 TrainOrderrouter.delete("/deleteorder", CheckLogin, CheckRole(["user"]), deleteTrainOrder);
+
+// Assign delivery partner to a train order
+TrainOrderrouter.put("/assignorderpartner", CheckLogin, CheckRole(["restaurantowner"]), assignTrainDeliveryPartner);
 
 export default TrainOrderrouter;

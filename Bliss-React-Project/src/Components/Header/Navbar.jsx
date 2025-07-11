@@ -5,7 +5,7 @@ import SearchBar from './Search';
 import { Link } from 'react-router-dom';
 import Button from '@mui/material/Button';
 
-const Navbar = ({ logo, links, buttons }) => {
+const Navbar = ({ logo, links, buttons, isAdmin }) => {
     return (
         <nav className="navbar">
             <div className="navbar-container">
@@ -29,6 +29,15 @@ const Navbar = ({ logo, links, buttons }) => {
                                 )}
                             </li>
                         ))}
+                        {isAdmin && (
+                            <>
+                                <li>
+                                    <Link to="/admin" className="navbar-link">
+                                        <h4>Admin Dashboard</h4>
+                                    </Link>
+                                </li>
+                            </>
+                        )}
                     </ul>
 
                     <div className="navbar-buttons">

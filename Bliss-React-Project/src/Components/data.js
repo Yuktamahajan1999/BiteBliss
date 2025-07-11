@@ -566,172 +566,6 @@ const restaurants = [
 export { restaurants };
 
 
-const foodQuiz = [
-  {
-    id: 1,
-    question: "What is the primary ingredient in Pav Bhaji?",
-    options: ["Potato", "Rice", "Wheat", "Tomato"],
-    answer: "Potato",
-  },
-  {
-    id: 2,
-    question: "Which South Indian dish is made with fermented rice and urad dal batter?",
-    options: ["Dosa", "Idli", "Vada", "Appam"],
-    answer: "Dosa",
-  },
-  {
-    id: 3,
-    question: "What is the main ingredient of Litti Chokha, a dish from Bihar?",
-    options: ["Sattu", "Paneer", "Rice", "Potato"],
-    answer: "Sattu",
-  },
-  {
-    id: 4,
-    question: "Which Gujarati snack is made of besan and steamed to perfection?",
-    options: ["Dhokla", "Khandvi", "Thepla", "Fafda"],
-    answer: "Dhokla",
-  },
-  {
-    id: 5,
-    question: "What is the popular drink from Punjab made with curd and sugar or salt?",
-    options: ["Lassi", "Chaas", "Juice", "Tea"],
-    answer: "Lassi",
-  },
-  {
-    id: 6,
-    question: "What is the spicy and tangy curry commonly eaten in Goa?",
-    options: ["Vindaloo", "Xacuti", "Sorpotel", "Ambotik"],
-    answer: "Vindaloo",
-  },
-  {
-    id: 7,
-    question: "Which sweet dish made with carrots is popular across India?",
-    options: ["Gajar Ka Halwa", "Rasgulla", "Barfi", "Gulab Jamun"],
-    answer: "Gajar Ka Halwa",
-  },
-
-  // Chinese Food
-  {
-    id: 8,
-    question: "Which noodle dish is a Chinese street food favorite?",
-    options: ["Chowmein", "Ramen", "Pho", "Udon"],
-    answer: "Chowmein",
-  },
-  {
-    id: 9,
-    question: "What is the main filling in traditional momos?",
-    options: ["Vegetables", "Rice", "Chicken", "Paneer"],
-    answer: "Vegetables",
-  },
-  {
-    id: 10,
-    question: "Which soup is known for being spicy and sour in Chinese cuisine?",
-    options: ["Hot and Sour", "Sweet Corn", "Miso", "Tomato"],
-    answer: "Hot and Sour",
-  },
-
-  // Italian Food
-  {
-    id: 11,
-    question: "Which Italian dish is made with layers of pasta, meat, and cheese?",
-    options: ["Lasagna", "Pizza", "Ravioli", "Focaccia"],
-    answer: "Lasagna",
-  },
-  {
-    id: 12,
-    question: "What is the name of flatbread topped with sauce, cheese, and vegetables?",
-    options: ["Pizza", "Focaccia", "Calzone", "Panini"],
-    answer: "Pizza",
-  },
-  {
-    id: 13,
-    question: "Which Indian bread is deep-fried and often served with chole?",
-    options: ["Bhatura", "Roti", "Naan", "Paratha"],
-    answer: "Bhatura",
-  },
-
-  // Street Food
-  {
-    id: 14,
-    question: "Which Indian street food consists of puffed puris filled with spicy water?",
-    options: ["Pani Puri", "Vada Pav", "Chaat", "Kachori"],
-    answer: "Pani Puri",
-  },
-  {
-    id: 15,
-    question: "Which Indian dessert is made of milk, sugar, and cardamom, often shaped into balls?",
-    options: ["Ladoo", "Gulab Jamun", "Barfi", "Rasgulla"],
-    answer: "Ladoo",
-  },
-  {
-    id: 16,
-    question: "Which bread-based snack is popular in Mumbai street food?",
-    options: ["Vada Pav", "Samosa", "Burger", "Kathi Roll"],
-    answer: "Vada Pav",
-  },
-
-  // Desserts
-  {
-    id: 17,
-    question: "Which Bengali sweet is made with cottage cheese?",
-    options: ["Rasgulla", "Sandesh", "Barfi", "Chamcham"],
-    answer: "Rasgulla",
-  },
-  {
-    id: 18,
-    question: "Which Indian dessert is fried dough soaked in sugar syrup?",
-    options: ["Jalebi", "Malpua", "Gulab Jamun", "Imarti"],
-    answer: "Jalebi",
-  },
-  {
-    id: 19,
-    question: "What is the popular South Indian dish made with lentils and spices, often paired with rice?",
-    options: ["Sambar", "Rasam", "Dal", "Chutney"],
-    answer: "Sambar",
-  },
-
-  // Fruits
-  {
-    id: 20,
-    question: "Which fruit is known as the 'king of fruits' in India?",
-    options: ["Mango", "Banana", "Apple", "Papaya"],
-    answer: "Mango",
-  },
-  {
-    id: 21,
-    question: "Which citrus fruit is known for its high Vitamin C content?",
-    options: ["Orange", "Lemon", "Grapefruit", "Lime"],
-    answer: "Orange",
-  },
-  {
-    id: 22,
-    question: "Which fruit is traditionally eaten during Wimbledon tennis matches?",
-    options: ["Strawberry", "Blueberry", "Raspberry", "Cherry"],
-    answer: "Strawberry",
-  },
-  {
-    id: 23,
-    question: "Which tropical fruit is known for its spiky outer shell and sweet yellow flesh?",
-    options: ["Pineapple", "Mango", "Papaya", "Durian"],
-    answer: "Pineapple",
-  },
-  {
-    id: 24,
-    question: "Which fruit is famously used to make guacamole?",
-    options: ["Avocado", "Tomato", "Lime", "Cucumber"],
-    answer: "Avocado",
-  },
-  {
-    id: 25,
-    question: "Which fruit is known as 'nature’s candy' due to its sweetness and small size?",
-    options: ["Grape", "Date", "Fig", "Raisin"],
-    answer: "Grape",
-  },
-];
-
-export { foodQuiz };
-
-
 const recipes = [
   {
     mood: "Comfort & Health",
@@ -2010,30 +1844,19 @@ export const cuisines = [
 
 export const popularDishes = [
   "Pizza", "Burger", "Thali", "Pasta", "Chicken", "Juice",
-  "Sandwich", "Shakes", "Ice Cream", "Dosa", "Cakes", "South-Indian", "Pancake", "Desserts"
-];
-
-export const restaurantTypes = [
-  "Bakeries Near me", "Sweet shops near me", "Cafes near me",
-  "Casual Dining near me", "Dhabas near me", "Beverages shop near me", "Bars Near me"
+  "Sandwich", "Shakes", "Ice Cream", "Dosa", "Cakes", "South-Indian", "Desserts"
 ];
 
 export const cities = [
-  "Delhi", "Manali", "Shimla", "Bangalore", "Chandigarh", "Himachal Pradesh"
+  "Shimla", "Chandigarh", "Palampur", "Dharmshala"
 ];
 
 export const topRestaurantChains = [
-  "Pizza Hut", "McDonald's", "Burger King"
+  "Pizza Hut", "Dominos",
 ];
 
 export const countries = [
-  { name: "United States (+1)", flag: "flag-images/usaflag.jpg", code: "us" },
-  { name: "India (+91)", flag: "flag-images/Indian-flag.png", code: "in" },
-  { name: "Australia (+61)", flag: "flag-images/Australia-flag.jpg", code: "au" },
-  { name: "United Kingdom (+44)", flag: "flag-images/UK-flag.jpg", code: "gb" },
-  { name: "Canada (+1)", flag: "flag-images/canada-flag.jpg", code: "ca" },
-  { name: "France (+33)", flag: "flag-images/france-flag.jpg", code: "fr" },
-  { name: "China (+86)", flag: "flag-images/China-flag.jpg", code: "cn" },
+  { name: "India (+91)", flag: "flag-images/Indian-flag.png", code: "in" }
 ];
 
 export const languages = [
@@ -2056,7 +1879,7 @@ export const appStores = [
 
 
 export const forRestaurants = [
-  { name: "Partner With Us", url: "#" },
+  { name: "Partner With Us", url: "partner" },
   { name: "Apps for You", url: "#" },
   { name: "Feeding India", url: "/feedingindia" },
 ];
@@ -2064,30 +1887,27 @@ export const forRestaurants = [
 export const paymentMethods = [
   { name: "Google Pay", icon: "payment-method/google-pay.png" },
   { name: "Visa Card", icon: "payment-method/card.png" },
-  { name: "PayPal", icon: "payment-method/paypal.png" },
-  { name: "MasterCard", icon: "payment-method/mastercard.png" },
-  { name: "Axis Bank", icon: "payment-method/axis-bank.jpeg" },
 ];
 
 export const quickLinks = [
   {
     title: "Customer Service",
     links: [
-      { name: "FAQs", url: "#" },
-      { name: "Support", url: "#" },
+      { name: "FAQs", url: "/helppage" },
+      { name: "Support", url: "/helppage" },
     ]
   },
   {
     title: "Legal",
     links: [
-      { name: "Terms of Use", url: "#" },
-      { name: "Privacy Policy", url: "#" },
+      { name: "Terms of Use", url: "/terms-of-service" },
+      { name: "Privacy Policy", url: "/terms-of-service" },
     ]
   },
   {
     title: "For Restaurants",
     links: [
-      { name: "Partner With Us", url: "#" },
+      { name: "Partner With Us", url: "partner" },
       { name: "Apps for You", url: "#" },
       { name: "Feeding India", url: "/feedingindia" },
     ]
@@ -2095,10 +1915,10 @@ export const quickLinks = [
   {
     title: "About Us",
     links: [
-      { name: "Who we are", url: "#" },
-      { name: "Work with us", url: "#" },
-      { name: "Report Fraud", url: "#" },
-      { name: "Contact Us", url: "#" },
+      { name: "Who we are", url: "/about" },
+      { name: "Work with us", url: "/partner" },
+      { name: "Report Fraud", url: "/feedback" },
+      { name: "Contact Us", url: "/about" },
     ]
   }
 ];

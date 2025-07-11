@@ -51,11 +51,20 @@ const tableBookingSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'confirmed', 'cancelled'],
+    enum: ['pending', 'confirmed', 'cancelled', 'waitlisted'],
     default: 'pending',
   },
 
-  experiences: [experienceSchema],
+  respondedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  },
+  cancellationReason: {
+    type: String,
+    enum: ['no-show', 'customer-request', 'restaurant-closed', 'other'],
+    default: 'other',
+  },
+ experiences: [experienceSchema],
 }, { timestamps: true });
 
 const TableBooking = mongoose.model("TableBooking", tableBookingSchema);

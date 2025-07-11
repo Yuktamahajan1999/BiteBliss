@@ -1,5 +1,7 @@
+/* eslint-disable react/prop-types */
 /* eslint-disable no-unused-vars */
-import React, { useState } from 'react';
+import axios from 'axios';
+import React, { useState, useEffect } from 'react';
 import {
   FaPercentage,
   FaTruck,
@@ -10,61 +12,70 @@ import {
 } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 
-const coupons = [
-  {
-    title: 'Flat 20% Off',
-    description: 'Get 20% off on orders above ₹500',
-    code: 'FLAT20',
-    icon: <FaPercentage />,
-    color: '#FF7043',
-    tag: 'Popular'
-  },
-  {
-    title: 'Free Delivery',
-    description: 'No delivery charge on your first 3 orders',
-    code: 'DELIVERYFREE',
-    icon: <FaTruck />,
-    color: '#5C6BC0'
-  },
-  {
-    title: 'First Order Special',
-    description: 'Enjoy a sweet 25% off on your first order',
-    code: 'WELCOME25',
-    icon: <FaRegSmile />,
-    color: '#66BB6A'
-  },
-  {
-    title: 'Buy 1 Get 1 Free',
-    description: 'Applicable on select meals only',
-    code: 'BOGOBLISS',
-    icon: <FaPlusCircle />,
-    color: '#EC407A'
-  },
-  {
-    title: 'Limited Time Deal',
-    description: 'Hurry! Offer valid only till midnight',
-    code: 'MIDNIGHT50',
-    icon: <FaClock />,
-    color: '#26C6DA',
-    tag: 'Expiring Soon'
-  }
-];
+const iconMap = {
+  FaPercentage: <FaPercentage />,
+  FaTruck: <FaTruck />,
+  FaRegSmile: <FaRegSmile />,
+  FaPlusCircle: <FaPlusCircle />,
+  FaClock: <FaClock />
+};
 
-const Coupons = () => {
+const Coupons = ({ subtotal = 0 }) => {
+  const [coupons, setCoupons] = useState([]);
   const [appliedCoupon, setAppliedCoupon] = useState('');
 
-  const handleApply = (code) => {
-    setAppliedCoupon(code);
-  
-    toast.success(
-      `✅ You’ve applied coupon: "${code}". Proceed to checkout!`,
-      {
-        position: 'top-right',
-        autoClose: 1000,
+  useEffect(() => {
+    const fetchCoupons = async () => {
+      try {
+        const { data } = await axios.get('http://localhost:8000/coupons/allCoupons');
+        setCoupons(data);
+      } catch {
+        setCoupons([]);
       }
-    );
+    };
+    fetchCoupons();
+
+    const fetchAppliedCoupons = async () => {
+      const token = localStorage.getItem('token');
+      try {
+        const { data } = await axios.get(
+          `http://localhost:8000/coupons/getCoupons`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        if (data.length > 0) {
+          setAppliedCoupon(data[0].code); 
+        }
+      } catch {
+        setAppliedCoupon('');
+      }
+    };
+    fetchAppliedCoupons();
+  }, []);
+
+  const handleApply = async (code, minOrder) => {
+    const userId = localStorage.getItem('userId');
+    const token = localStorage.getItem('token');
+    try {
+      await axios.post(
+        'http://localhost:8000/coupons/applyCoupon',
+        { userId, code, orderAmount: subtotal },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      setAppliedCoupon(code);
+      toast.success(`Coupon "${code}" applied!`, { autoClose: 1000 });
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to apply coupon');
+    }
   };
-  
 
   return (
     <div className="coupons-page">
@@ -74,33 +85,39 @@ const Coupons = () => {
           Save more on every order with these exciting offers!
         </p>
       </div>
-
       <div className="coupons-grid">
-        {coupons.map((coupon, index) => (
-          <div className="coupon-card" key={index}>
-            {coupon.tag && (
-              <div className="coupon-tag" style={{ backgroundColor: coupon.color }}>
-                {coupon.tag === 'Expiring Soon' && <FaFire className="tag-icon" />}
-                {coupon.tag}
+        {coupons.map((coupon, index) => {
+          const isEligible = !coupon.minOrder || subtotal >= coupon.minOrder;
+          return (
+            <div className="coupon-card" key={index}>
+              {coupon.tag && (
+                <div className="coupon-tag" style={{ backgroundColor: coupon.color }}>
+                  <FaFire className="tag-icon" />
+                  {coupon.tag}
+                </div>
+              )}
+              <div className="coupon-icon-wrapper" style={{ color: coupon.color }}>
+                {iconMap[coupon.icon] || <FaPercentage />}
               </div>
-            )}
-            <div className="coupon-icon-wrapper" style={{ color: coupon.color }}>
-              {coupon.icon}
-            </div>
-            <div className="coupon-details">
-              <h3 className="coupon-title">{coupon.title}</h3>
-              <p className="coupon-description">{coupon.description}</p>
-              <div className="coupon-code-wrapper">
-                <span className="coupon-code">
-                  Use code: <strong>{coupon.code}</strong>
-                </span>
-                <button className="apply-button" onClick={() => handleApply(coupon.code)}>
-                  Apply
-                </button>
+              <div className="coupon-details">
+                <h3 className="coupon-title">{coupon.title}</h3>
+                <p className="coupon-description">{coupon.description}</p>
+                <div className="coupon-code-wrapper">
+                  <span className="coupon-code">
+                    Use code: <strong>{coupon.code}</strong>
+                  </span>
+                  <button
+                    className="apply-button"
+                    disabled={appliedCoupon === coupon.code || !isEligible}
+                    onClick={() => handleApply(coupon.code, coupon.minOrder)}
+                  >
+                    {appliedCoupon === coupon.code ? "Applied" : isEligible ? "Apply" : `Min order ₹${coupon.minOrder}`}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

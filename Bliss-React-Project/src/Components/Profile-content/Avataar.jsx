@@ -1,6 +1,7 @@
-/* eslint-disable no-unused-vars */
+// eslint-disable-next-line no-unused-vars
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 
 const AvatarPage = () => {
   const [selectedAvatar, setSelectedAvatar] = useState(null);
@@ -38,14 +39,23 @@ const AvatarPage = () => {
 
   const handleConfirmSelection = async () => {
     if (!selectedAvatar) return;
-    const response = await fetch(selectedAvatar.src);
-    const blob = await response.blob();
-    const file = new File(
-      [blob],
-      selectedAvatar.id + selectedAvatar.src.substr(selectedAvatar.src.lastIndexOf('.')),
-      { type: blob.type }
-    );
-    navigate('/profilesection', { state: { selectedAvatar, avatarFile: file } });
+
+    try {
+      const response = await fetch(selectedAvatar.src);
+      const blob = await response.blob();
+      const file = new File([blob], 'avatar.png', { type: blob.type });
+      console.log("Fetched avatar file:", file); 
+
+      navigate('/profilesection', { 
+        state: { 
+          selectedAvatar: selectedAvatar.src,
+          avatarFile: file 
+        } 
+      });
+    } catch (error) {
+      console.error("Error processing avatar:", error);
+      toast.error("Failed to process avatar selection");
+    }
   };
 
   return (
@@ -63,10 +73,7 @@ const AvatarPage = () => {
             {maleAvatars.map((avatar) => (
               <div
                 key={avatar.id}
-                className={`avatar-circle ${selectedAvatar?.id === avatar.id && selectedAvatar?.gender === 'male'
-                    ? 'selected'
-                    : ''
-                  }`}
+                className={`avatar-circle ${selectedAvatar?.id === avatar.id && selectedAvatar?.gender === 'male' ? 'selected' : ''}`}
                 onClick={() => handleAvatarClick(avatar, 'male')}
               >
                 <img src={avatar.src} alt="Male avatar" />
@@ -81,10 +88,7 @@ const AvatarPage = () => {
             {femaleAvatars.map((avatar) => (
               <div
                 key={avatar.id}
-                className={`avatar-circle ${selectedAvatar?.id === avatar.id && selectedAvatar?.gender === 'female'
-                    ? 'selected'
-                    : ''
-                  }`}
+                className={`avatar-circle ${selectedAvatar?.id === avatar.id && selectedAvatar?.gender === 'female' ? 'selected' : ''}`}
                 onClick={() => handleAvatarClick(avatar, 'female')}
               >
                 <img src={avatar.src} alt="Female avatar" />

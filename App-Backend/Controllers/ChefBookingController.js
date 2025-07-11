@@ -1,5 +1,6 @@
 import ChefBooking from '../Models/ChefBooking.js';
 import { CateringBooking } from '../Models/CorporateCatering.js';
+import ChefProfile from '../Models/ChefForm.js';
 
 // Create a new Booking
 export const createChefBooking = async (req, res) => {
@@ -18,12 +19,12 @@ export const getAllChefBookings = async (req, res) => {
     const { id } = req.query;
 
     if (id) {
-      const booking = await ChefBooking.findById(id).populate('chef');
+      const booking = await ChefBooking.findById(id).populate('chef').populate('address');
       if (!booking) return res.status(404).json({ error: 'Booking not found' });
       return res.json(booking);
     }
 
-    const bookings = await ChefBooking.find().populate('chef');
+    const bookings = await ChefBooking.find().populate('chef').populate('address');
     res.json(bookings);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -32,16 +33,22 @@ export const getAllChefBookings = async (req, res) => {
 
 // getchef Booking
 export const getBookingsByChef = async (req, res) => {
-  try {
-    const id = req.query.id;
-
-    const bookings = await ChefBooking.find({ chef: id }).populate('chef');
-    res.json(bookings);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+    try {
+        const chefProfile = await ChefProfile.findOne({ createdBy: req.user.id });
+        
+        if (!chefProfile) {
+            return res.status(404).json({ error: 'Chef profile not found' });
+        }
+        const bookings = await ChefBooking.find({ chef: chefProfile._id })
+            .populate('user', 'name email phone')
+            .populate('chef', 'chefName specialty')
+            .sort({ eventDate: -1 });
+            
+        res.json(bookings);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 };
-
 // Update booking 
 export const updateChefBooking = async (req, res) => {
   try {
@@ -140,18 +147,18 @@ export const completeChefBooking = async (req, res) => {
 
 // Chef Arrived 
 export const chefArrived = async (req, res) => {
-    const { id } = req.query;
-    const booking = await ChefBooking.findByIdAndUpdate(
-        id,
-        { status: 'arrived' },
-        { new: true, runValidators: true }
+  const { id } = req.query;
+  const booking = await ChefBooking.findByIdAndUpdate(
+    id,
+    { status: 'arrived' },
+    { new: true, runValidators: true }
+  );
+  if (booking && booking.cateringBookingId) {
+    await CateringBooking.findByIdAndUpdate(
+      booking.cateringBookingId,
+      { status: 'arrived' }
     );
-    if (booking && booking.cateringBookingId) {
-        await CateringBooking.findByIdAndUpdate(
-            booking.cateringBookingId,
-            { status: 'arrived' }
-        );
-    }
-    if (!booking) return res.status(404).json({ error: 'Booking not found' });
-    res.json(booking);
+  }
+  if (!booking) return res.status(404).json({ error: 'Booking not found' });
+  res.json(booking);
 };

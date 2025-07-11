@@ -5,22 +5,32 @@ import {
   getRecipeById,
   addRecipe,
   updateRecipe,
-  deleteRecipe
+  deleteRecipe,
 } from '../Controllers/RecipeBookController.js';
 
 import checkLogin from '../Middlewares/CheckLogin.js';
 import { uploadMedia } from '../Middlewares/UploadMiddleware.js';
 
-const router = express.Router();
+const Reciperouter = express.Router();
 
-// Public routes
-router.get('/getrecipeofday', getRecipeOfTheDay);          
-router.get('/', getAllRecipes);               
-router.get('/getrecipe', getRecipeById);       
+// Get today's recipe
+Reciperouter.get('/getrecipeofday', getRecipeOfTheDay);
 
-// Protected routes 
-router.post('/addrecipe',uploadMedia.array('media', 5),  checkLogin, addRecipe);
-router.put('/updaterecipe',uploadMedia.array('media',5), checkLogin, updateRecipe);
-router.delete('/deleterecipe', checkLogin, deleteRecipe);
+// Get all recipes
+Reciperouter.get('/', getAllRecipes);
 
-export default router;
+// Get a specific recipe
+Reciperouter.get('/getrecipe', getRecipeById);
+
+// Add a recipe
+Reciperouter.post('/addrecipe', uploadMedia.array('media', 5), checkLogin, addRecipe);
+
+// Update a recipe
+Reciperouter.put('/updaterecipe', uploadMedia.array('media', 5), checkLogin, updateRecipe);
+
+// Delete a recipe
+Reciperouter.delete('/deleterecipe', checkLogin, deleteRecipe);
+
+
+
+export default Reciperouter;

@@ -1,10 +1,12 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useRef, useEffect } from "react";
-import { cuisines, popularDishes, restaurantTypes, cities, topRestaurantChains } from "../data";
+import { useNavigate } from "react-router-dom";
+import { cuisines, popularDishes, cities, topRestaurantChains } from "../data";
 
 const ExploreOptions = () => {
   const [activeDropdown, setActiveDropdown] = useState(null);
   const dropdownRefs = useRef([]);
+  const navigate = useNavigate(); 
 
   const toggleDropdown = (index) => {
     setActiveDropdown(activeDropdown === index ? null : index);
@@ -25,29 +27,37 @@ const ExploreOptions = () => {
     { 
       title: "Popular Cuisines Near Me", 
       items: cuisines,
-      icon: "fa-utensils" 
+      icon: "fa-utensils",
+      type: "food"
     },
     { 
       title: "Popular Dishes", 
       items: popularDishes,
-      icon: "fa-bowl-food" 
-    },
-    { 
-      title: "Restaurant Types", 
-      items: restaurantTypes,
-      icon: "fa-store" 
+      icon: "fa-bowl-food",
+      type: "food"
     },
     { 
       title: "Cities", 
       items: cities,
-      icon: "fa-city" 
+      icon: "fa-city",
+      type: "city"
     },
     { 
       title: "Top Restaurant Chains", 
       items: topRestaurantChains,
-      icon: "fa-chess-queen" 
+      icon: "fa-chess-queen",
+      type: "chain"
     }
   ];
+  const handleDropdownItemClick = (dropdown, item) => {
+    if (dropdown.type === "food") {
+      navigate(`/allrestaurants?food=${encodeURIComponent(item)}`);
+    } else if (dropdown.type === "type") {
+      navigate(`/allrestaurants?type=${encodeURIComponent(item)}`);
+    } else if (dropdown.type === "chain") {
+      navigate(`/allrestaurants?chain=${encodeURIComponent(item)}`);
+    }
+  };
 
   return (
     <div className="explore-options-container">
@@ -76,6 +86,12 @@ const ExploreOptions = () => {
                   key={itemIndex}
                   href="#"
                   className="dropdown-item"
+                  onClick={e => {
+                    e.preventDefault();
+                    if (dropdown.type !== "city") {
+                      handleDropdownItemClick(dropdown, item);
+                    }
+                  }}
                 >
                   <i className="fa fa-chevron-right icon-item"></i>
                   {item}

@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Switch from '@mui/material/Switch';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { toast } from 'react-toastify';
+import axios from 'axios';
 
 const Notifications = () => {
     const [notifications, setNotifications] = useState({
@@ -15,12 +17,40 @@ const Notifications = () => {
     });
 
     const toggleNotification = (type) => {
-        setNotifications(prev => ({ ...prev, [type]: !prev[type] }));
+        if (type === 'enableAll') {
+            const newState = !notifications.enableAll;
+            const updatedSettings = Object.fromEntries(
+                Object.entries(notifications).map(([key]) => [key, newState])
+            );
+            setNotifications(updatedSettings);
+        } else {
+            setNotifications(prev => ({ ...prev, [type]: !prev[type] }));
+        }
     };
 
-    const handleSave = () => {
-        console.log("Saved settings:", notifications);
-        alert("Notification preferences saved!");
+    const handleSave = async () => {
+        try {
+            const notificationPreferences = {
+                sms: notifications.newsletters,
+                email: notifications.promos,
+                push: notifications.social
+            };
+            const res = await axios.post('http://localhost:8000/notification', notificationPreferences);
+            if (res.status === 201 || res.status === 200) {
+                toast.success("Preferences saved!");
+            } else {
+                toast.error("Failed to save preferences", {
+                    position: "top-center",
+                    autoClose: 3000
+                });
+            }
+        } catch (err) {
+            toast.error("Error saving preferences", {
+                position: "top-center",
+                autoClose: 3000
+            });
+            console.error(err);
+        }
     };
 
     return (
@@ -29,7 +59,7 @@ const Notifications = () => {
                 <Link to="/settings" className="back-btn"><ArrowBackIcon /></Link>
                 <h2>Settings</h2>
             </div>
-            
+
             <div className="settings-section">
                 <h3>Notification Preferences</h3>
 

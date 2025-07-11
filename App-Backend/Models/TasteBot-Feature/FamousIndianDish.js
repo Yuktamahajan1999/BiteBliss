@@ -1,40 +1,43 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
-let FamousDishSchema = new mongoose.Schema({
-    dish:{
-        type: String,
-        required: true,
-    },
+const dishSchema = new mongoose.Schema({
     state: {
         type: String,
-        required: true,
+        required: true
     },
-    emoji:{
+    dish: {
         type: String,
+        required: true
     },
-    description:{
+    description: {
         type: String,
-        required: true,
+        required: true
     },
-    ingredients:{
+    emoji: {
+        type: String,
+        required: true
+    },
+    ingredients: {
         type: [String],
-        required: true,
+        required: true
     },
-    instructions:{
+    instructions: {
         type: [String],
-        required: true,
+        required: true
     },
-    image:{
+    image: {
+        type: String
+    },
+    video: {
+        type: String
+    },
+    source: {
         type: String,
-        required: true,
-    },
-    video:{
-        type: String,
-    },
-
+        enum: ['static', 'ai'],
+        default: 'static'
+    }
 }, { timestamps: true });
-let FamousDish = mongoose.model("FamousDish", FamousDishSchema);
-export default FamousDish;
 
+const Dish = mongoose.model('Dish', dishSchema);
 
-
+export default Dish;

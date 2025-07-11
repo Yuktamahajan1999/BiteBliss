@@ -17,6 +17,11 @@ const TestimonialSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
         required: true,
+    },
+     page: {
+        type: String,
+        required: true,
+        enum: ["employees", "feeding-india"], 
     }
 }, { timestamps: true });
 

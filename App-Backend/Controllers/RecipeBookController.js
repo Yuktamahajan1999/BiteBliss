@@ -1,35 +1,48 @@
 import mongoose from 'mongoose';
 import RecipeBook from '../Models/RecipeBook.js';
-import { uploadToCloudinary } from '../Middlewares/UploadMiddleware.js';
+import { uploadToCloudinary, uploadFromUrlToCloudinary } from '../Middlewares/UploadMiddleware.js';
 
-// Add a new recipe 
+// Add a new recipe
 export const addRecipe = async (req, res) => {
   try {
-    const { title, description, prepTime, ingredients, steps, existingMedia } = req.body;
+    const { title, description, prepTime, ingredients, steps, existingMedia, mediaLinks } = req.body;
     const mediaFiles = req.files || [];
 
     if (!title || !description || !ingredients || !steps) {
       return res.status(400).json({ message: 'Please fill in all required fields.' });
     }
 
-    // Parse
     const ingredientsArr = typeof ingredients === "string" ? JSON.parse(ingredients) : ingredients;
     const stepsArr = typeof steps === "string" ? JSON.parse(steps) : steps;
     const existingMediaArr = existingMedia ? JSON.parse(existingMedia) : [];
+    const mediaLinksArr = mediaLinks ? JSON.parse(mediaLinks) : [];
 
-    // Upload new files
     const uploadedMedia = [];
+
     for (const file of mediaFiles) {
       const result = await uploadToCloudinary(file.buffer, "recipes");
       uploadedMedia.push({
         url: result.secure_url,
         type: file.mimetype.startsWith('video') ? 'video' : 'image',
         name: file.originalname,
-        isFile: true
+        isFile: true,
       });
     }
 
-    // Merge
+    for (const link of mediaLinksArr) {
+      try {
+        const result = await uploadFromUrlToCloudinary(link, "recipes");
+        uploadedMedia.push({
+          url: result.secure_url,
+          type: result.resource_type === 'video' ? 'video' : 'image',
+          name: link.split('/').pop(),
+          isFile: false,
+        });
+      } catch (err) {
+        console.warn(`Failed to upload media link: ${link}`, err.message);
+      }
+    }
+
     const allMedia = [...existingMediaArr, ...uploadedMedia];
 
     const newRecipe = new RecipeBook({
@@ -50,6 +63,7 @@ export const addRecipe = async (req, res) => {
   }
 };
 
+// Update an existing recipe
 export const updateRecipe = async (req, res) => {
   const { id } = req.query;
 
@@ -58,20 +72,32 @@ export const updateRecipe = async (req, res) => {
   }
 
   try {
-    const { title, description, prepTime, ingredients, steps, existingMedia } = req.body;
+    const { title, description, prepTime, ingredients, steps, existingMedia, mediaLinks } = req.body;
     const mediaFiles = req.files || [];
+
     const ingredientsArr = typeof ingredients === "string" ? JSON.parse(ingredients) : ingredients;
     const stepsArr = typeof steps === "string" ? JSON.parse(steps) : steps;
     const existingMediaArr = existingMedia ? JSON.parse(existingMedia) : [];
+    const mediaLinksArr = mediaLinks ? JSON.parse(mediaLinks) : [];
 
     const uploadedMedia = [];
+
     for (const file of mediaFiles) {
       const result = await uploadToCloudinary(file.buffer, "recipes");
       uploadedMedia.push({
         url: result.secure_url,
         type: file.mimetype.startsWith('video') ? 'video' : 'image',
         name: file.originalname,
-        isFile: true
+        isFile: true,
+      });
+    }
+
+    for (const link of mediaLinksArr) {
+      uploadedMedia.push({
+        url: link,
+        type: link.match(/\.(mp4|webm|mov)$/i) ? 'video' : 'image',
+        name: link.split('/').pop(),
+        isFile: false,
       });
     }
 
@@ -83,7 +109,7 @@ export const updateRecipe = async (req, res) => {
       prepTime,
       ingredients: ingredientsArr,
       steps: stepsArr,
-      media: allMedia
+      media: allMedia,
     };
 
     const updatedRecipe = await RecipeBook.findByIdAndUpdate(id, updatedData, { new: true });
@@ -99,12 +125,10 @@ export const updateRecipe = async (req, res) => {
 // Get Recipe of the Day
 export const getRecipeOfTheDay = async (req, res) => {
   try {
-    const latestRecipe = await RecipeBook.findOne();
-
+    const latestRecipe = await RecipeBook.findOne().sort({ createdAt: -1 });
     if (!latestRecipe) {
       return res.status(200).json({ message: "No recipe found for today.", recipe: null });
     }
-
     res.status(200).json({ message: "Here's today's recipe!", recipe: latestRecipe });
   } catch (err) {
     res.status(500).json({ message: "Couldn't fetch recipe.", error: err.message });

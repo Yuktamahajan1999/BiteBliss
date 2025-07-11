@@ -2,6 +2,9 @@ import User from '../Models/User.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { validationResult } from 'express-validator';
+import DeliveryPartner from '../Models/DeliveryPartner.js';
+import ChefProfile from '../Models/ChefForm.js';
+
 
 const getAlluser = async (req, res) => {
     try {
@@ -23,8 +26,15 @@ const getAlluser = async (req, res) => {
 const registerUser = async (req, res) => {
     const errors = validationResult(req);
     const { name, email, password, phoneNumber, role } = req.body;
+    if (!['user', 'chef', 'restaurantowner', 'deliverypartner', 'admin'].includes(role)) {
+        return res.status(400).json({ message: "Invalid role provided" });
+    }
+
+
+    console.log("Incoming registration request:", { name, email, phoneNumber });
 
     if (!errors.isEmpty()) {
+        console.log("Validation errors:", errors.array());
         return res.status(400).json({
             success: false,
             message: "Validation failed",
@@ -35,6 +45,7 @@ const registerUser = async (req, res) => {
     try {
         const existingUser = await User.findOne({ email });
         if (existingUser) {
+            console.log("User already exists with email:", email);
             return res.status(400).json({
                 success: false,
                 message: "User already exists with this email",
@@ -42,19 +53,61 @@ const registerUser = async (req, res) => {
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
+        console.log("Password hashed successfully");
+
+        let status = 'approved';
+        if (role === 'chef' || role === 'deliverypartner') {
+            status = 'pending'; 
+        }
+
         const newUser = new User({
             name,
             email,
             password: hashedPassword,
             phoneNumber,
             role,
+            status
         });
 
         await newUser.save();
+        console.log("New user saved:", newUser._id);
+
+        if (role === 'deliverypartner') {
+            await DeliveryPartner.create({
+                name,
+                email,
+                phone: phoneNumber,
+                user: newUser._id,
+                status: 'available'
+            });
+            console.log("DeliveryPartner profile created");
+        }
+
+        if (role === 'chef') {
+            await ChefProfile.create({
+                chefName: name,
+                specialty: 'Not specified',
+                cuisines: ['Indian'],
+                price: 199,
+                vegNonVeg: 'both',
+                signatureDishes: ['Placeholder Dish'],
+                menu: [],
+                location: 'Not specified',
+                contactNumber: phoneNumber,
+                bio: '',
+                isAvailable: true,
+                status: 'approved',
+                isApproved: true,
+                isHygienic: true,
+                createdBy: newUser._id
+            });
+            console.log("ChefProfile created");
+        }
 
         const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET_KEY, {
             expiresIn: "10y",
         });
+        console.log("JWT token generated");
 
         const { password: _, ...userData } = newUser._doc;
 
@@ -65,14 +118,14 @@ const registerUser = async (req, res) => {
             token,
         });
     } catch (err) {
+        console.error("Error during registration:", err);
         res.status(500).json({
             success: false,
             message: "Server error during registration",
-            error: err,
+            error: err.message,
         });
     }
 };
-
 const loginUser = async (req, res) => {
     const { email, password } = req.body;
 
@@ -99,7 +152,8 @@ const loginUser = async (req, res) => {
                 id: existingUser._id,
                 name: existingUser.name,
                 email: existingUser.email,
-                role: existingUser.role
+                role: existingUser.role,
+                status: existingUser.status
             }
         });
     } catch (err) {
@@ -109,7 +163,7 @@ const loginUser = async (req, res) => {
 
 // Update user 
 const updateUser = async (req, res) => {
-    const userId = req.query.id;  
+    const userId = req.query.id;
     const { name, email, password, phoneNumber, role } = req.body;
 
     try {
@@ -146,7 +200,7 @@ const updateUser = async (req, res) => {
 
 // Delete user 
 const deleteUser = async (req, res) => {
-    const userId = req.query.id;  
+    const userId = req.query.id;
 
     try {
         const deletedUser = await User.findByIdAndDelete(userId);

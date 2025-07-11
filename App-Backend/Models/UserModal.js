@@ -19,16 +19,22 @@ const UserPreferencesSchema = new mongoose.Schema(
         type: mongoose.Schema.Types.ObjectId,
         ref: "Restaurant",
       },
-    ],
-    appliedCoupons: [
-      {
-        code: { type: String, required: true },
-        appliedAt: { type: Date, default: Date.now }
-      }
-    ]
+    ],rewardPoints: {
+      type: Number,
+      default: 0
+    },
+    ratingRewardGiven: {
+      type: Boolean,
+      default: false
+    },
+    redeemedRewards: {
+      type: [String],
+      default: []
+    }
   },
   { timestamps: true }
 );
+
 
 const UserPreference = mongoose.model("UserPreference", UserPreferencesSchema);
 
@@ -46,7 +52,7 @@ const GiftCardSchema = new mongoose.Schema(
     redeemedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false,
     },
     expirationDate: {
       type: Date,
@@ -83,5 +89,22 @@ GiftCardSchema.index(
 
 const GiftCard = mongoose.model("GiftCard", GiftCardSchema);
 
+const UserCouponPrefsSchema = new mongoose.Schema({
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+    unique: true
+  },
+  appliedCoupons: [{
+    code: {
+      type: String,
+      required: true
+    }
+  }]
+});
+const UserCouponPrefs = mongoose.model("UserCouponPrefs", UserCouponPrefsSchema);
 
-export { UserPreference, GiftCard };
+
+export { UserPreference, GiftCard, UserCouponPrefs };
+

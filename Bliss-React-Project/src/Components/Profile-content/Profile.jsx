@@ -1,19 +1,65 @@
 /* eslint-disable no-unused-vars */
-import React, { useContext } from 'react';
-import { UserContext, useUser } from '../UserContext';
+import React, { useEffect, useState } from 'react';
+import { useUser } from '../UserContext';
 import { Link, useNavigate } from 'react-router-dom';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import SettingsIcon from '@mui/icons-material/Settings';
+import axios from 'axios';
+import { disconnectSocket } from '../socket';
 
 const Profile = () => {
-    const { theme,logout } = useUser();
-    const navigate = useNavigate()
+    const { theme, logout } = useUser();
+    const navigate = useNavigate();
 
-    const handlelogout =() => {
-        logout()
-        navigate('/login')
-    }
+    const handlelogout = () => {
+        disconnectSocket();
+        logout();
+        navigate('/login');
+    };
+
+    const [isRestaurantApproved, setIsRestaurantApproved] = useState(false);
+
+    useEffect(() => {
+        const fetchApprovalStatus = async () => {
+            const user = JSON.parse(localStorage.getItem('user'));
+            if (!user || user.role !== 'restaurantowner') {
+                // Don't call the API if not restaurantowner
+                return;
+            }
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    console.log('No token found');
+                    return;
+                }
+                const res = await axios.get('http://localhost:8000/partnerapp/getApproveApp', {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                if (res.data && res.data.status === 'accepted') {
+                    setIsRestaurantApproved(true);
+                } else {
+                    setIsRestaurantApproved(false);
+                }
+            } catch (error) {
+                setIsRestaurantApproved(false);
+                if (error.response) {
+                    console.error('Error response:', error.response.status, error.response.data);
+                    if (error.response.status === 403) {
+                        console.error('Forbidden - Check user permissions');
+                    }
+                } else if (error.request) {
+                    console.error('No response received:', error.request);
+                } else {
+                    console.error('Request setup error:', error.message);
+                }
+            }
+        };
+        fetchApprovalStatus();
+    }, []);
 
     return (
         <div className={`profile-header ${theme}`}>
@@ -37,12 +83,6 @@ const Profile = () => {
                     <Link to="/profilesection">
                         <div className={`profile ${theme}`}>
                             <h3><img src="Icons/profile.png" alt="Profile" className="feature-icon" /> Profile</h3>
-                            <KeyboardArrowRightIcon className="arrow-icon" />
-                        </div>
-                    </Link>
-                    <Link to="/appearance">
-                        <div className={`profile ${theme}`}>
-                            <h3><img src="Icons/appearance.png" alt="Appearance" className="feature-icon" /> Appearance</h3>
                             <KeyboardArrowRightIcon className="arrow-icon" />
                         </div>
                     </Link>
@@ -75,6 +115,12 @@ const Profile = () => {
                             <KeyboardArrowRightIcon className="arrow-icon" />
                         </div>
                     </Link>
+                    <Link to="/deliverypartner">
+                        <div className={`profile ${theme}`}>
+                            <h3><img src="Icons/deliveryboy.png" alt="" className="feature-icon" />Delivery Partner</h3>
+                            <KeyboardArrowRightIcon className="arrow-icon" />
+                        </div>
+                    </Link>
                     <Link to="/orderontrain">
                         <div className={`profile ${theme}`}>
                             <h3><img src="Icons/train.png" alt="" className="feature-icon" /> Order on Train</h3>
@@ -93,7 +139,7 @@ const Profile = () => {
                             <KeyboardArrowRightIcon className="arrow-icon" />
                         </div>
                     </Link>
-                     <Link to="/chefform">
+                    <Link to="/chefform">
                         <div className={`profile ${theme}`}>
                             <h3><img src="Icons/chef.png" alt="" className="feature-icon" /> Chef Form</h3>
                             <KeyboardArrowRightIcon className="arrow-icon" />
@@ -191,6 +237,14 @@ const Profile = () => {
                             <KeyboardArrowRightIcon className="arrow-icon" />
                         </div>
                     </Link>
+                    {isRestaurantApproved && (
+                        <Link to="/restaurant-profile">
+                            <div className={`profile ${theme}`}>
+                                <h3><img src="Icons/restaurant.png" alt="" className="feature-icon" /> Restaurant Profile</h3>
+                                <KeyboardArrowRightIcon className="arrow-icon" />
+                            </div>
+                        </Link>
+                    )}
                 </div>
 
                 {/* Support */}

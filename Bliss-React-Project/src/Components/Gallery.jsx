@@ -1,9 +1,10 @@
 /* eslint-disable react/prop-types */
 /* eslint-disable no-unused-vars */
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import SkipPreviousIcon from '@mui/icons-material/SkipPrevious';
 import SkipNextIcon from '@mui/icons-material/SkipNext';
 import { Link } from "react-router-dom";
+import axios from "axios";
 
 const Gallery = ({ data, title }) => {
   return (
@@ -13,7 +14,10 @@ const Gallery = ({ data, title }) => {
         {data.map((item, index) => (
           <div className="gallery-section" key={index}>
             <Link
-              to={`restaurants.html?food=${encodeURIComponent(item.altText)}&offer=${item.offer || false}`}
+              to={{
+                pathname: "/allrestaurants",
+                search: `?food=${encodeURIComponent(item.altText)}`
+              }}
             >
               <img
                 src={item.imgSrc}
@@ -29,21 +33,40 @@ const Gallery = ({ data, title }) => {
   );
 };
 
-const GalleryRestaurants = ({ data, itemsPerPage, title }) => {
+const GalleryRestaurants = ({ itemsPerPage = 4, title }) => {
+  const [restaurantData, setRestaurantData] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  function prevClick() {
-    setCurrentIndex((prev) => (prev - itemsPerPage + data.length) % data.length);
-  }
+  const prevClick = () => {
+    setCurrentIndex((prev) => (prev - itemsPerPage + restaurantData.length) % restaurantData.length);
+  };
 
-  function nextClick() {
-    setCurrentIndex((next) => (next + itemsPerPage) % data.length);
-  }
+  const nextClick = () => {
+    setCurrentIndex((next) => (next + itemsPerPage) % restaurantData.length);
+  };
 
-  const itemsToDisplay = data.slice(currentIndex, currentIndex + itemsPerPage);
-  if (itemsToDisplay.length < itemsPerPage) {
-    itemsToDisplay.push(...data.slice(0, itemsPerPage - itemsToDisplay.length));
-  }
+  const itemsToDisplay = (() => {
+    const slice = restaurantData.slice(currentIndex, currentIndex + itemsPerPage);
+    if (slice.length < itemsPerPage) {
+      return [...slice, ...restaurantData.slice(0, itemsPerPage - slice.length)];
+    }
+    return slice;
+  })();
+
+  useEffect(() => {
+    const fetchTopRestaurants = async () => {
+      try {
+        const response = await axios.get('http://localhost:8000/restaurant/getAllrestaurant?top=10');
+        if (response.data.success) {
+          setRestaurantData(response.data.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch top restaurants:", error);
+      }
+    };
+
+    fetchTopRestaurants();
+  }, []);
 
   return (
     <div className="container gallery-restaurant-container">
@@ -55,14 +78,21 @@ const GalleryRestaurants = ({ data, itemsPerPage, title }) => {
             {itemsToDisplay.map((restaurant, index) => (
               <div className="gallery-section-restaurants" key={index}>
                 <Link
-                  to={`/restaurant-detail?name=${encodeURIComponent(restaurant.name)}`} 
+                to={`/restaurantdetails/${restaurant._id}`}
                 >
-                <div className="custom-card-restaurants">
-                  <img src={restaurant.image} alt={restaurant.alt} className="custom-card-media" />
-                  <div className="card-content">
-                    <h6 className="restaurant-name-list">{restaurant.name}</h6>
+                  <div className="custom-card-restaurants">
+                    <img src={restaurant.image} alt={restaurant.alt} className="custom-card-media" />
+                    <div className="card-content">
+                      <h6 className="restaurant-name-list">{restaurant.name}</h6>
+                      {restaurant.cuisines && (
+                        <div className="cuisine-tags">
+                          {restaurant.cuisines.map((cuisine, i) => (
+                            <span key={i} className="tag">{cuisine}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
                 </Link>
               </div>
             ))}
@@ -73,6 +103,5 @@ const GalleryRestaurants = ({ data, itemsPerPage, title }) => {
     </div>
   );
 };
-
 
 export { Gallery, GalleryRestaurants };

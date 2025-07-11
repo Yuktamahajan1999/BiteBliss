@@ -1,117 +1,149 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FiTrash2, FiHeart } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
 
 const ManageRecommendations = () => {
-  const [myRecommendations, setMyRecommendations] = useState([]);
-  const [friendRecommendations, setFriendRecommendations] = useState([]);
+  const [allRestaurants, setAllRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
-
   const token = localStorage.getItem('token');
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchRecommendations = async () => {
+    const fetchData = async () => {
       try {
-        const headers = {
-          Authorization: `Bearer ${token}`,
-        };
-
-        const [myRes, friendRes] = await Promise.all([
-          axios.get("http://localhost:8000/recommend", { headers }),
-          // axios.get("http://localhost:8000/recommend/friends", {
-          //   headers: { Authorization: `Bearer ${token}` },
-          // })
-        ]);
-
-        setMyRecommendations(myRes.data);
-
-        const formattedFriendRecs = friendRes.data.map(rec => ({
+        const headers = { Authorization: `Bearer ${token}` };
+        const myRes = await axios.get("http://localhost:8000/recommend", { headers });
+        const formattedMyRecs = myRes.data.map(rec => ({
           id: rec._id,
+          restaurantId: rec.restaurantId?._id || rec.restaurantId,
           name: rec.restaurantId?.name || "Unnamed",
-          cuisine: rec.restaurantId?.cuisine || "N/A",
-          location: rec.restaurantId?.location || "Unknown",
-          recommendedBy: rec.recommendedBy?.name || "Friend",
+          image: rec.restaurantId?.image || "",
+          cuisine: Array.isArray(rec.restaurantId?.cuisine) ? rec.restaurantId.cuisine.join(', ') : "N/A",
+          location: rec.restaurantId?.address || rec.restaurantId?.location || "Unknown",
+          time: rec.restaurantId?.time || "",
           liked: rec.liked,
+          isRecommendation: true,
         }));
+        const freqRes = await axios.get("http://localhost:8000/recommend/frequent", { headers });
+        const formattedFreq = freqRes.data.map(item => ({
+          id: item.id,
+          restaurantId: item.id,
+          name: item.name || "Unnamed",
+          image: item.image || "",
+          cuisine: Array.isArray(item.cuisine) ? item.cuisine.join(', ') : item.cuisine || "N/A",
+          location: item.address || item.location || "Unknown",
+          time: item.time || "",
+          liked: false,
+          isRecommendation: false,
+        }));
+        const existingIds = new Set(formattedMyRecs.map(r => r.restaurantId));
+        const filteredFreq = formattedFreq.filter(fr => !existingIds.has(fr.restaurantId));
 
-        setFriendRecommendations(formattedFriendRecs);
+        setAllRestaurants([...formattedMyRecs, ...filteredFreq]);
       } catch (error) {
-        console.error('Error loading recommendations:', error);
+        console.error("Error fetching data:", error);
+        setAllRestaurants([]);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchRecommendations();
+    fetchData();
   }, [token]);
 
-  const handleDelete = async (id) => {
-    try {
-      await axios.delete(`http://localhost:8000/recommend/deleteRecommend?id=${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      setMyRecommendations(prev => prev.filter(rec => rec._id !== id));
-    } catch (error) {
-      console.error('Error deleting recommendation:', error);
+  const handleDelete = async (id, isRecommendation) => {
+    if (isRecommendation) {
+      try {
+        await axios.delete(`http://localhost:8000/recommend/deleteRecommend?id=${id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch (error) {
+        console.error("Delete error:", error);
+      }
     }
+
+    setAllRestaurants(prev => prev.filter(r => r.id !== id));
   };
 
-  const toggleLike = async (id, isFriend) => {
-    const list = isFriend ? friendRecommendations : myRecommendations;
-    const rec = list.find(r => r._id === id || r.id === id);
-    const updatedLiked = !rec?.liked;
+  const toggleLike = async (rec) => {
+    const updatedLiked = !rec.liked;
 
     try {
-      await axios.put(`http://localhost:8000/recommend/updateRecommend?id=${id}`, { liked: updatedLiked }, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      if (rec.isRecommendation) {
+        await axios.put(
+          `http://localhost:8000/recommend/updateRecommend?id=${rec.id}`,
+          { liked: updatedLiked },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
 
-      if (isFriend) {
-        setFriendRecommendations(prev =>
-          prev.map(r => r.id === id ? { ...r, liked: updatedLiked } : r)
+        setAllRestaurants(prev =>
+          prev.map(r => r.id === rec.id ? { ...r, liked: updatedLiked } : r)
         );
       } else {
-        setMyRecommendations(prev =>
-          prev.map(r => r._id === id ? { ...r, liked: updatedLiked } : r)
+        const response = await axios.post(
+          `http://localhost:8000/recommend/create`,
+          { restaurantId: rec.restaurantId, rating: 5, liked: true },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        const newRec = response.data.recommendation;
+
+        setAllRestaurants(prev =>
+          prev.map(r =>
+            r.id === rec.id
+              ? {
+                  ...r,
+                  id: newRec._id,
+                  liked: true,
+                  isRecommendation: true,
+                }
+              : r
+          )
         );
       }
     } catch (err) {
-      console.error('Error updating like:', err);
+      console.error("Like error:", err);
     }
   };
 
   if (loading) return <p>Loading recommendations...</p>;
 
   return (
-    <div className="recommendations-container">
-      <header className="recommendations-header">
+    <div className="recommend-container">
+      <header className="recommend-header">
         <h1>🍽️ Manage Recommendations</h1>
         <p>Save and organize your favorite dining spots</p>
       </header>
 
-      <section className="recommendations-section">
+      <section className="recommend-section">
         <h2>Your Recommendations</h2>
-        {myRecommendations.length > 0 ? (
-          <div className="cards-container">
-            {myRecommendations.map(rec => (
-              <div className="recommendation-card" key={rec._id}>
-                <div className="card-content">
-                  <h3>{rec.restaurantId?.name || "Unnamed"}</h3>
-                  <p className="details">
-                    {rec.restaurantId?.cuisine || "N/A"} • {rec.restaurantId?.location || "Unknown"}
-                  </p>
+        {allRestaurants.length > 0 ? (
+          <div className="recommend-cards">
+            {allRestaurants.map(rec => (
+              <div className="recommend-card" key={rec.id}>
+                <div
+                  className="recommend-card-link"
+                  onClick={() => navigate(`/restaurantdetails/${rec.restaurantId}`)}
+                >
+                  <h3>{rec.name}</h3>
+                  {rec.image && <img src={rec.image} alt={rec.name} className="recommend-card-image" />}
+                  <p className="recommend-card-detail">{rec.cuisine}</p>
+                  <p className="recommend-card-detail">{rec.location}</p>
+                  {rec.time && <p className="recommend-card-detail">{rec.time}</p>}
                 </div>
-                <div className="card-actions">
+
+                <div className="recommend-card-actions">
                   <button
-                    className={`like-btn ${rec.liked ? 'liked' : ''}`}
-                    onClick={() => toggleLike(rec._id, false)}
+                    className={`recommend-like-btn ${rec.liked ? 'liked' : ''}`}
+                    onClick={() => toggleLike(rec)}
                   >
                     <FiHeart />
                   </button>
                   <button
-                    className="delete-btn"
-                    onClick={() => handleDelete(rec._id)}
+                    className="recommend-delete-btn"
+                    onClick={() => handleDelete(rec.id, rec.isRecommendation)}
                   >
                     <FiTrash2 />
                   </button>
@@ -120,34 +152,7 @@ const ManageRecommendations = () => {
             ))}
           </div>
         ) : (
-          <p className="empty-message">No recommendations added yet</p>
-        )}
-      </section>
-
-      <section className="recommendations-section">
-        <h2>Friend Recommendations</h2>
-        {friendRecommendations.length > 0 ? (
-          <div className="cards-container">
-            {friendRecommendations.map(rec => (
-              <div className="recommendation-card" key={rec.id}>
-                <div className="card-content">
-                  <h3>{rec.name}</h3>
-                  <p className="details">{rec.cuisine} • {rec.location}</p>
-                  <p className="recommended-by">Recommended by: {rec.recommendedBy}</p>
-                </div>
-                <div className="card-actions">
-                  <button
-                    className={`like-btn ${rec.liked ? 'liked' : ''}`}
-                    onClick={() => toggleLike(rec.id, true)}
-                  >
-                    <FiHeart />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="empty-message">No recommendations from friends</p>
+          <p className="recommend-empty">No recommendations added yet</p>
         )}
       </section>
     </div>

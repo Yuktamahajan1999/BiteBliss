@@ -1,6 +1,7 @@
 /* eslint-disable no-unused-vars */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
 function PartnerWithUs() {
   const [formData, setFormData] = useState({
@@ -10,16 +11,19 @@ function PartnerWithUs() {
     phone: '',
     cuisineType: '',
     address: '',
-    message: ''
+    message: '',
+    status: 'pending'
   });
 
-  const [submitted, setSubmitted] = useState(false);
+  const [applicationStatus, setApplicationStatus] = useState(null);
+  const navigate = useNavigate();
+  const [showModal, setShowModal] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({
       ...formData,
-      [name]: value,
+      [name]: name === 'cuisineType' ? value.split(',').map(item => item.trim()) : value,
     });
   };
 
@@ -28,15 +32,13 @@ function PartnerWithUs() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post('http://localhost:8000/partnerapp',formData,
-      {
+      const response = await axios.post('http://localhost:8000/partnerapp', formData, {
         headers: {
-          Authorization: `Bearer ${token}`,  
+          Authorization: `Bearer ${token}`,
         },
-      }
-    );
-      console.log('✅ Form submitted successfully:', response.data);
-      setSubmitted(true);
+      });
+
+      setApplicationStatus('pending');
       setFormData({
         businessName: '',
         contactPerson: '',
@@ -44,18 +46,76 @@ function PartnerWithUs() {
         phone: '',
         cuisineType: '',
         address: '',
-        message: ''
+        message: '',
+        status: 'pending'
       });
 
-      setTimeout(() => setSubmitted(false), 5000);
     } catch (error) {
-      console.error('❌ Error submitting the form:', error.response?.data || error.message);
+      console.error('Error submitting the form:', error.response?.data || error.message);
     }
   };
 
+  useEffect(() => {
+    const getApproveApplication = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const userId = localStorage.getItem('userId');
+        const role = localStorage.getItem('role');
+        const modalSeen = localStorage.getItem(`partnerModalSeen_${userId}`);
+
+        if (modalSeen === 'true' || role !== 'owner') return;
+
+        const res = await axios.get('http://localhost:8000/partnerapp/getApproveApp', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.data && res.data.status === 'accepted') {
+          localStorage.setItem(`partnerModalSeen_${userId}`, 'true');
+          setShowModal(true);
+          setApplicationStatus('accepted');
+        }
+      } catch (err) {
+        console.log('No approved application found:', err.response?.data?.message || err.message);
+      }
+    };
+
+    getApproveApplication();
+  }, []);
+
+  const handleModalClose = () => {
+    setShowModal(false);
+    const userId = localStorage.getItem('userId');
+    localStorage.setItem(`partnerModalSeen_${userId}`, 'true');
+  };
+
+  const handleModalContinue = () => {
+    const userId = localStorage.getItem('userId');
+    localStorage.setItem(`partnerModalSeen_${userId}`, 'true');
+    navigate('/restaurant-profile');
+  };
+  useEffect(() => {
+    const checkIfAlreadyApplied = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const role = localStorage.getItem('role');
+        if (role !== 'owner') return;
+        const res = await axios.get('http://localhost:8000/partnerapp/getpartnerapp', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (res.data.length > 0) {
+          const application = res.data[0];
+          setApplicationStatus(application.status);
+        }
+      } catch (err) {
+        console.log('Check failed:', err.message);
+      }
+    };
+
+    checkIfAlreadyApplied();
+  }, []);
+
   return (
     <div className="partner-container">
-      {/* Hero Section */}
       <section className="partner-hero">
         <h1>Partner With Us</h1>
         <p>Join our platform and grow your restaurant with us.</p>
@@ -64,15 +124,24 @@ function PartnerWithUs() {
         </button>
       </section>
 
-      {/* Registration Form */}
       <section className="form-section">
         <h2>Fill Out Your Details</h2>
-        {submitted ? (
+
+        {applicationStatus === 'pending' && (
           <div className="success-message">
             <h3>Thank you for your application!</h3>
             <p>We&apos;ll be in touch soon.</p>
           </div>
-        ) : (
+        )}
+
+        {applicationStatus === 'rejected' && (
+          <div className="rejected-message">
+            <h3>We&apos;re sorry!</h3>
+            <p>Your application was not approved. You may try again later.</p>
+          </div>
+        )}
+
+        {applicationStatus !== 'pending' && applicationStatus !== 'rejected' && (
           <form onSubmit={handleSubmit} className="partner-form">
             <div>
               <label>Restaurant Name*</label>
@@ -148,6 +217,23 @@ function PartnerWithUs() {
           </form>
         )}
       </section>
+
+      {showModal && (
+        <div className="partner-modal-overlay">
+          <div className="partner-modal-content">
+            <h2>Application Approved!</h2>
+            <p>Your application has been approved. Please complete your restaurant profile to go live.</p>
+            <div className="partner-modal-buttons">
+              <button className="partner-modal-primary" onClick={handleModalContinue}>
+                Continue
+              </button>
+              <button className="partner-modal-secondary" onClick={handleModalClose}>
+                Later
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <section className="contact-section">
         <h2>Contact Us</h2>

@@ -30,21 +30,13 @@ const paymentSchema = new mongoose.Schema(
     },
     method: {
       type: String,
-      enum: [
-        "credit-card",
-        "debit-card",
-        "paypal",
-        "google-pay",
-        "phonepe",
-        "netbanking",
-        "cod"
-      ],
+      enum: ["credit-card", "google-pay", "cod"],
       required: true
     },
     cardDetails: {
       type: cardDetailsSchema,
       required: function () {
-        return this.method === "credit-card" || this.method === "debit-card";
+        return this.method === "credit-card";
       }
     },
     transactionId: {
@@ -61,12 +53,18 @@ const paymentSchema = new mongoose.Schema(
       enum: ["order", "donation"],
       default: "order"
     },
-    createdAt: {
-      type: Date,
-      default: Date.now
+    amount: {
+      type: Number,
+      required: true
+    },
+    restaurantId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Restaurant",
+      required: function () {
+        return this.type === "order";
+      }
     }
-  }
-);
+  }, { timestamps: true });
 
 const Payment = mongoose.model("Payment", paymentSchema);
 export default Payment;

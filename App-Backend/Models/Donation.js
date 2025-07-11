@@ -20,7 +20,8 @@ const donationSchema = new mongoose.Schema(
     paymentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Payment",
-      required: false
+      required: false,
+      default: null,
     },
     status: {
       type: String,

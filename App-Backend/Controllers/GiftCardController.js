@@ -44,6 +44,7 @@ export const createGiftCard = async (req, res) => {
             expirationDate,
         });
     } catch (error) {
+        console.error(error); 
         return res.status(500).json({ error: 'Failed to create gift card' });
     }
 };
@@ -51,30 +52,35 @@ export const createGiftCard = async (req, res) => {
 
 // Claim a gift card
 export const claimGiftCard = async (req, res) => {
-    try {
-        const userId = req.user.id;
-        const { cardCode, pin } = req.body;
+  try {
+    const userId = req.user.id;
+    const { cardCode, pin } = req.body;
 
-        const card = await GiftCard.findOne({ cardCode });
+    const card = await GiftCard.findOne({ cardCode });
 
-        if (!card) return res.status(404).json({ error: 'Card not found' });
-        if (card.pin !== pin)
-            return res.status(403).json({ error: 'Invalid PIN' });
+    if (!card) return res.status(404).json({ error: 'Card not found' });
 
-        if (card.redeemedAt)
-            return res.status(400).json({ error: 'Gift card already redeemed' });
+    if (card.pin !== pin) return res.status(403).json({ error: 'Invalid PIN' });
 
-
-        if (new Date() > card.expirationDate)
-            return res.status(400).json({ error: 'Gift card expired' });
-
-        card.redeemedBy = userId;
-        card.redeemedAt = new Date();
-        await card.save();
-        return res.status(200).json({ message: 'Gift card claimed successfully!' });
-    } catch (error) {
-        return res.status(500).json({ error: 'Failed to claim gift card' });
+    if (card.redeemedAt && card.redeemedBy?.toString() !== userId) {
+      return res.status(400).json({ error: 'Gift card already redeemed by another user' });
     }
+
+    if (new Date() > card.expirationDate) {
+      return res.status(400).json({ error: 'Gift card expired' });
+    }
+
+    if (!card.redeemedBy) {
+      card.redeemedBy = userId;
+      card.redeemedAt = new Date();
+      await card.save();
+    }
+
+    return res.status(200).json({ message: 'Gift card claimed successfully!' });
+  } catch (error) {
+    console.error("Claim Error:", error);
+    return res.status(500).json({ error: 'Failed to claim gift card' });
+  }
 };
 
 // Save coupon to user preference

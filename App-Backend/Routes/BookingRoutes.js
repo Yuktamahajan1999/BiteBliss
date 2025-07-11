@@ -6,7 +6,8 @@ import {
   deleteTableBooking,
   addExperience,
   getBookingsByUser,
-  getBookingsByRestaurant
+  getBookingsByRestaurant,
+  getExperienceByBooking
 } from '../Controllers/TableBookingController.js';
 import checkLogin from '../Middlewares/CheckLogin.js';
 import { bookingValidation } from '../Middlewares/Validation.js';
@@ -36,5 +37,10 @@ Bookingrouter.get('/getBookingsByRestaurant', checkLogin, checkRole('restauranto
 
 // Add an experience with media uploads
 Bookingrouter.post('/experience', checkLogin, uploadMedia.array('media', 5), addExperience);
+
+// Get experiences by bookingId
+Bookingrouter.get('/getExperience', checkLogin, getExperienceByBooking);
+
+
 
 export default Bookingrouter;

@@ -8,18 +8,20 @@ import {
   deleteVideo,
   updateVideo,
   upvoteVideo,
+  addReply,
 } from "../Controllers/VideoController.js";
+import checkRole from "../Middlewares/CheckRole.js";
 
 const Videorouter = express.Router();
 
 // Get all user videos
-Videorouter.get("/user", checkLogin, (req, res) => {
+Videorouter.get("/user", (req, res) => {
   req.query.uploadedByType = "User";
   getVideos(req, res);
 });
 
 // Get all restaurant videos
-Videorouter.get("/restaurant", checkLogin, (req, res) => {
+Videorouter.get("/restaurant", (req, res) => {
   req.query.uploadedByType = "Restaurant";
   getVideos(req, res);
 });
@@ -44,7 +46,7 @@ Videorouter.delete("/user/deletevideo", checkLogin, (req, res) => {
 
 // Delete video by restaurant
 Videorouter.delete("/restaurant/deletevideo", checkLogin, (req, res) => {
-  req.body.uploadedByType = "Restaurant";
+  req.query.uploadedByType = "Restaurant";
   deleteVideo(req, res);
 });
 
@@ -55,13 +57,16 @@ Videorouter.put("/user/updatevideo", checkLogin, uploadMedia.single("video"), (r
 });
 
 // Update video by restaurant
-Videorouter.put("/restaurant/updatevideo", checkLogin, uploadMedia.single("video"), (req, res) => {
+Videorouter.put("/restaurant/updatevideo", checkLogin, checkRole(["restaurantowner"]), uploadMedia.single("video"), (req, res) => {
   req.body.uploadedByType = "Restaurant";
   updateVideo(req, res);
 });
 
 // Add comment 
 Videorouter.post("/comment", checkLogin, addComment);
+
+// Reply comment 
+Videorouter.post("/addreply", checkLogin, addReply);
 
 // vote for video
 Videorouter.post("/upvote", checkLogin, upvoteVideo);

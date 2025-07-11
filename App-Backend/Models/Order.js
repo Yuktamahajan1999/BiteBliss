@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-let OrderSchema = new mongoose.Schema({
+const OrderSchema = new mongoose.Schema({
   orderId: {
     type: String,
     required: true,
@@ -11,48 +11,116 @@ let OrderSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  restaurantId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Restaurant',
+    required: true
+  },
   restaurantName: {
     type: String,
     required: true
   },
-  restaurantLocation: {
-    type: String
+  orderType: {
+    type: String,
+    enum: ['normal', 'train', 'group'],
+    required: true,
+    default: 'normal'
+  },
+  payment: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Payment',
+    required: true
+  },
+  isTrainOrder: {
+    type: Boolean,
+    default: false
+  },
+  trainOrderRef: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'OrderOnTrain'
+  },
+  groupOrderRef: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'GroupOrder'
   },
   items: [
     {
       itemId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'MenuItem' 
+        ref: 'MenuItem'
       },
       name: String,
       quantity: Number,
       price: Number
     }
   ],
-  paymentMethod: {
-    type: String,
-    enum: ['Cash on Delivery', 'UPI', 'Card'],
-    required: true
-  },
-  paymentStatus: {
-    type: String,
-    enum: ['Pending', 'Paid', 'Failed'],
-    default: 'Pending'
-  },
   totalAmount: {
     type: Number,
     required: true
   },
+  gst: {
+    type: Number,
+    required: true
+  },
+  deliveryFee: {
+    type: Number,
+    required: true
+  },
+  isFreeDelivery: {
+    type: Boolean,
+    default: false
+  },
   status: {
     type: String,
-    enum: ['Preparing', 'Out for delivery', 'Delivered'],
-    default: 'Preparing'
+    enum: ['pending', 'restaurant_accepted', 'preparing', 'ready_for_pickup', 'out_for_delivery', 'delivered', 'cancelled'],
+    default: 'pending'
+  },
+  deliveryStatus: {
+    type: String,
+    enum: ['unassigned', 'assigned', 'picked_up', 'arrived', 'delivered'],
+    default: 'unassigned'
+  },
+  ownerApproval: {
+    type: Boolean,
+    default: false
+  },
+  rejectedByOwners: {
+    type: Boolean,
+    default: false
+  },
+  rejectionReason: {
+    type: String,
+    default: ""
+  },
+  rejectedByPartners: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'DeliveryPartner'
+    }
+  ],
+  address: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Address',
+    required: true
+  },
+  deliveryStage: {
+    type: Number,
+    default: 1
+  },
+  deliveryPartner: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'DeliveryPartner',
+    default: null
   },
   deliveryTime: {
     type: Number,
-    default: 30 
+    default: 30
+  },
+  orderPlacedTime: {
+    type: Date,
+    default: Date.now
   }
 }, { timestamps: true });
 
-let Order = mongoose.model('Order', OrderSchema);
+const Order = mongoose.model('Order', OrderSchema);
 export default Order;

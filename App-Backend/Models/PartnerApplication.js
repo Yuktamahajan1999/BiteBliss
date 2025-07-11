@@ -32,7 +32,7 @@ const PartnerApplicationSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'approved', 'rejected'],
+    enum: ['pending', 'approved', 'rejected', 'accepted', 'reviewed'],
     default: 'pending',
   },
   submittedBy: {
@@ -43,7 +43,7 @@ const PartnerApplicationSchema = new mongoose.Schema({
     },
     role: {
       type: String,
-      enum: ['admin', 'restaurantowner'],
+      enum: ['admin'],
       required: true
     }
   }

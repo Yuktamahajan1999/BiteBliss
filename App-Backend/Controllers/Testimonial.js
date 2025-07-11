@@ -3,18 +3,19 @@ import Testimonial from '../Models/Testimonial.js';
 // Create a new testimonial
 export const createTestimonial = async (req, res) => {
     try {
-        const { story, location } = req.body;
+        const { story, location, page } = req.body;
 
-        if (!story || !location) {
+        if (!story || !location || !page) {
             return res.status(400).json({ error: "Story and location are required" });
         }
 
-        const author = req.user.name;
+        const author = req.body.author || req.user.name;
 
         const newTestimonial = new Testimonial({
             story,
             location,
             author,
+            page,
             userId: req.user.id
         });
 
@@ -30,12 +31,16 @@ export const createTestimonial = async (req, res) => {
 // Get all testimonials
 export const getAllTestimonials = async (req, res) => {
     try {
-        const testimonials = await Testimonial.find();
+        const { page } = req.query;
+        const filter = page ? { page } : {};
+        const testimonials = await Testimonial.find(filter);
+
         res.status(200).json({ success: true, data: testimonials });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
 };
+
 
 // Get testimonial by ID
 export const getTestimonialById = async (req, res) => {

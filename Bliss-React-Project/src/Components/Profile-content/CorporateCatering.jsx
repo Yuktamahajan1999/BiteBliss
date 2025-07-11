@@ -12,6 +12,33 @@ function CorporateCatering() {
     const [submittedForms, setSubmittedForms] = useState([]);
     const [userBookings, setUserBookings] = useState([]);
     const [topChefs, setTopChefs] = useState([]);
+    const [userAddresses, setUserAddresses] = useState([]);
+    const [selectedAddress, setSelectedAddress] = useState('');
+    const [ratings, setRatings] = useState({});
+    const [comments, setComments] = useState({});
+
+    useEffect(() => {
+        const fetchUserAddresses = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) return;
+
+                const response = await axios.get('http://localhost:8000/address/getAddress', {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+
+                setUserAddresses(response.data);
+                if (response.data.length > 0) {
+                    setSelectedAddress(response.data[0].address);
+                }
+            } catch (error) {
+                console.error('Failed to fetch addresses', error);
+                toast.error('Failed to load your addresses');
+            }
+        };
+
+        fetchUserAddresses();
+    }, []);
     useEffect(() => {
         localStorage.setItem("submittedForms", JSON.stringify(submittedForms));
     }, [submittedForms]);
@@ -94,16 +121,33 @@ function CorporateCatering() {
 
     useEffect(() => {
         const fetchAvailableChefs = async () => {
+            if (!selectedAddress) return;
+
             try {
-                const response = await axios.get("http://localhost:8000/chef/availablechef");
-                setTopChefs(response.data.chefs || []);
+                console.log('Fetching chefs for address:', selectedAddress);
+                const response = await axios.get(
+                    `http://localhost:8000/chef/availablechef?location=${encodeURIComponent(selectedAddress)}`,
+                    {
+                        headers: {
+                            Authorization: `Bearer ${localStorage.getItem('token')}`
+                        }
+                    }
+                );
+
+                if (response.data?.chefs) {
+                    setTopChefs(response.data.chefs);
+                } else {
+                    setTopChefs([]);
+                }
             } catch (error) {
                 console.error("Error fetching chefs:", error);
                 toast.error("Failed to load chef data");
+                setTopChefs([]);
             }
         };
+
         fetchAvailableChefs();
-    }, []);
+    }, [selectedAddress]);
 
     const openForm = (type, chef = "") => {
         setFormType(type);
@@ -125,15 +169,20 @@ function CorporateCatering() {
     const postBookingData = async (data) => {
         try {
             const token = localStorage.getItem("token");
-            if (!token) {
-                throw new Error("User not authenticated. Please log in.");
-            }
+            if (!token) throw new Error("User not authenticated");
+
+            const currentAddress = userAddresses.find(a => a.address === selectedAddress);
+
             const response = await axios.post(
                 "http://localhost:8000/chef/book",
                 {
                     name: data.name?.trim() || "",
                     email: data.email?.trim() || "",
-                    address: data.address?.trim() || "",
+                    address: selectedAddress,
+                    city: currentAddress?.city,
+                    state: currentAddress?.state,
+                    country: currentAddress?.country,
+                    pincode: currentAddress?.pincode,
                     date: data.date || new Date().toISOString().split('T')[0],
                     eventTime: data.eventTime || "",
                     phone: data.phone?.trim() || "",
@@ -144,9 +193,7 @@ function CorporateCatering() {
                     eventType: data.eventType || "corporate"
                 },
                 {
-                    headers: {
-                        Authorization: `Bearer ${token}`
-                    }
+                    headers: { Authorization: `Bearer ${token}` }
                 }
             );
             return response.data;
@@ -165,11 +212,11 @@ function CorporateCatering() {
             const postData = {
                 name: data.name,
                 email: data.email,
-                address: data.address,
+                address: selectedAddress,
                 date: data.date,
                 eventTime: data.eventTime,
                 phone: data.phone,
-                chefName: data.chefName || selectedChef || "N/A",
+                chefName: selectedChef || data.chefName,
                 specialRequests: data.specialRequests,
                 menu: selectedMenuItems,
                 headCount: parseInt(data.headCount, 10),
@@ -178,11 +225,11 @@ function CorporateCatering() {
 
             const result = await postBookingData(postData);
             if (result) {
-                const newEntry = {
-                    submissionType: formType,
-                    ...postData
-                };
-                setSubmittedForms([...submittedForms, newEntry]);
+                setUserBookings(prev => [...prev, {
+                    ...postData,
+                    _id: result._id,
+                    status: 'pending'
+                }]);
                 toast.success("Booking submitted successfully!");
                 closeForm();
             }
@@ -239,6 +286,87 @@ function CorporateCatering() {
         );
     };
 
+    const handleRateChef = (bookingId, rating) => {
+        setRatings(prev => ({
+            ...prev,
+            [bookingId]: rating
+        }));
+    };
+
+    const handleCommentChange = (bookingId, comment) => {
+        setComments(prev => ({
+            ...prev,
+            [bookingId]: comment
+        }));
+    };
+
+    const submitRating = async (bookingId) => {
+        try {
+            const token = localStorage.getItem('token');
+            const rating = ratings[bookingId];
+            const comment = comments[bookingId] || "Great service!";
+
+            if (!rating) {
+                toast.error('Please select a rating');
+                return;
+            }
+
+            const booking = userBookings.find(b => b._id === bookingId);
+            if (!booking) {
+                toast.error('Booking not found');
+                return;
+            }
+
+            if (!booking.chef && !booking.chefName) {
+                toast.error('No chef associated with this booking');
+                return;
+            }
+
+            const response = await axios.post(
+                'http://localhost:8000/chef/ratingchef',
+                {
+                    id: bookingId,
+                    rating,
+                    comment,
+                    reviewer: "User",
+                    chefName: booking.chefName || (booking.chef?.chefName || "Unknown Chef")
+                },
+                {
+                    headers: { Authorization: `Bearer ${token}` }
+                }
+            );
+
+            setUserBookings(prevBookings =>
+                prevBookings.map(booking =>
+                    booking._id === bookingId
+                        ? {
+                            ...booking,
+                            rated: true,
+                            rating: rating,
+                            comment: comment
+                        }
+                        : booking
+                )
+            );
+
+            setRatings(prev => {
+                const newRatings = { ...prev };
+                delete newRatings[bookingId];
+                return newRatings;
+            });
+
+            setComments(prev => {
+                const newComments = { ...prev };
+                delete newComments[bookingId];
+                return newComments;
+            });
+
+            toast.success('Rating submitted successfully!');
+        } catch (error) {
+            console.error('Rating submission error:', error);
+            toast.error(error.response?.data?.message || 'Failed to submit rating');
+        }
+    };
     useEffect(() => {
         const fetchUserBookings = async () => {
             try {
@@ -256,7 +384,7 @@ function CorporateCatering() {
 
         fetchUserBookings();
 
-        const interval = setInterval(fetchUserBookings, 30000);
+        const interval = setInterval(fetchUserBookings, 10000);
 
         return () => clearInterval(interval);
     }, []);
@@ -295,6 +423,27 @@ function CorporateCatering() {
                 </div>
             </section>
 
+            <section className="address-selector">
+                <h3 className="address-selector__heading">Select Your Location</h3>
+                {userAddresses.length > 0 ? (
+                    <select
+                        value={selectedAddress}
+                        onChange={(e) => setSelectedAddress(e.target.value)}
+                        className="address-selector__dropdown"
+                    >
+                        {userAddresses.map(address => (
+                            <option
+                                key={`addr-${address._id}`}
+                                value={address.address}
+                            >
+                                {address.text}
+                            </option>
+                        ))}
+                    </select>
+                ) : (
+                    <p className="address-selector__no-address">No addresses found. Please add an address in your profile.</p>
+                )}
+            </section>
             <section className="cc-chef-service">
                 <h2>👨‍🍳 Chef On-Demand</h2>
                 <p>Get a personal chef at your workplace or venue. They cook and clean too!</p>
@@ -382,24 +531,45 @@ function CorporateCatering() {
                         <button onClick={() => toggleCard("ratedChefs")}>👨‍🍳 View Chefs</button>
                         {activeCard === "ratedChefs" && (
                             <div className="cc-toggle-content active">
-                                {topChefs.map((chef, index) => (
-                                    <div key={index} className="cc-chef-profile">
-                                        <h4>{chef.chefName}</h4>
-                                        <p>Specialty: {chef.specialty}</p>
-                                        <p>Status: {chef.isAvailable ? "Available" : "Unavailable"}</p>
-                                        <p>Cuisines: {chef.cuisines && chef.cuisines.join(", ")}</p>
-                                        <p>Menu: {chef.menu && chef.menu.join(", ")}</p>
-                                        <p>Signature Dishes: {chef.signatureDishes && chef.signatureDishes.join(", ")}</p>
-                                        <button
-                                            className="cc-book-chef-btn"
-                                            onClick={() => openForm("Book Chef", chef.chefName)}
-                                            disabled={!chef.isAvailable}
-                                        >
-                                            📅 Book {chef.chefName}
-                                        </button>
-                                        <hr />
+                                {!selectedAddress ? (
+                                    <div className="no-address-message">
+                                        <p>Please select an address to view available chefs</p>
                                     </div>
-                                ))}
+                                ) : topChefs.length > 0 ? (
+                                    topChefs.map((chef) => (
+                                        <div key={chef._id} className="cc-chef-profile">
+                                            <h4>{chef.chefName}</h4>
+                                            <p>Specialty: {chef.specialty}</p>
+                                            <p>Status:
+                                                <span className={`availability-badge ${chef.isAvailable ? 'available' : 'unavailable'}`}>
+                                                    {chef.isAvailable ? 'Available' : 'Unavailable'}
+                                                </span>
+                                            </p>
+                                            <div className="availability-indicator">
+                                                <span className={`indicator-dot ${chef.isAvailable ? 'available' : 'unavailable'}`}></span>
+                                                {chef.isAvailable ? 'Ready to book' : 'Currently unavailable'}
+                                            </div>
+                                            <p>Status: {chef.isAvailable ? "Available" : "Unavailable"}</p>
+                                            <p>Cuisines: {chef.cuisines && chef.cuisines.join(", ")}</p>
+                                            <p>Menu: {chef.menu && chef.menu.join(", ")}</p>
+                                            <p>Signature Dishes: {chef.signatureDishes && chef.signatureDishes.join(", ")}</p>
+                                            <p>Rating: {chef.rating ? `${chef.rating.toFixed(1)} ★ (${chef.ratings?.length || 0} reviews)` : 'No ratings yet'}</p>
+                                            <button
+                                                className="cc-book-chef-btn"
+                                                onClick={() => openForm("Book Chef", chef.chefName)}
+                                                disabled={!chef.isAvailable}
+                                                title={!chef.isAvailable ? "This chef is currently unavailable" : ""}
+                                            >
+                                                {chef.isAvailable ? `📅 Book ${chef.chefName}` : 'Unavailable'}
+                                            </button>
+                                            <hr />
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="no-chefs-message">
+                                        <p>No chefs available in {selectedAddress}</p>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
@@ -440,8 +610,9 @@ function CorporateCatering() {
                                 <input
                                     type="text"
                                     name="address"
-                                    placeholder="Event Address"
-                                    required
+                                    value={selectedAddress}
+                                    readOnly
+                                    className="cc-form-input"
                                 />
                                 <input
                                     type="date"
@@ -496,11 +667,22 @@ function CorporateCatering() {
                                     placeholder="Special Requests (Optional)"
                                     rows={4}
                                 />
-                                <input
-                                    type="hidden"
-                                    name="chefName"
-                                    value={selectedChef}
-                                />
+                                <div className="cc-form-group">
+                                    <label>Book Chef Name:</label>
+                                    <div className="cc-chef-display">
+                                        {selectedChef ? (
+                                            <strong>{selectedChef}</strong>
+                                        ) : (
+                                            <span className="cc-no-chef">Please select a chef from Top Rated Chefs</span>
+                                        )}
+                                    </div>
+                                    <input
+                                        type="hidden"
+                                        name="chefName"
+                                        value={selectedChef}
+                                        required
+                                    />
+                                </div>
                                 <div className="cc-form-group">
                                     <label htmlFor="eventType">Event Type:</label>
                                     <select id="eventType" name="eventType" required>
@@ -524,28 +706,157 @@ function CorporateCatering() {
                     <p>No requests submitted yet.</p>
                 ) : (
                     <div className="cc-status-list">
-                        {userBookings.map((entry, index) => (
-                            <div key={entry._id || index} className="cc-status-card" data-type={entry.submissionType || "Booking"}>
-                                <h4>{entry.submissionType || "Booking"}</h4>
-                                {entry.name && <p><strong>Name:</strong> {entry.name}</p>}
-                                {entry.email && <p><strong>Email:</strong> {entry.email}</p>}
-                                {entry.phone && <p><strong>Phone:</strong> {entry.phone}</p>}
-                                {entry.address && <p><strong>Address:</strong> {entry.address}</p>}
-                                {entry.date && <p><strong>Date:</strong> {new Date(entry.date).toLocaleDateString()}</p>}
-                                {entry.chefName && <p><strong>Chef:</strong> {entry.chefName}</p>}
-                                {entry.specialRequests && <p><strong>Requests:</strong> {entry.specialRequests}</p>}
-                                {entry.headCount && <p><strong>Headcount:</strong> {entry.headCount}</p>}
-                                {entry.status && (
-                                    <p>
-                                        <strong>Status:</strong>{" "}
-                                        <span style={{
-                                            color: statusColorMap[entry.status] || "#555",
-                                            fontWeight: "bold",
-                                            textTransform: "capitalize"
-                                        }}>
-                                            {statusLabelMap[entry.status] || entry.status}
+                        {userBookings.map((booking) => (
+                            <div key={booking._id} className="cc-status-card">
+                                <h4>Booking #{booking._id?.toString().slice(-6).toUpperCase()}</h4>
+                                <div className="booking-details-grid">
+                                    <div className="detail-row">
+                                        <span className="detail-label">Customer:</span>
+                                        <span className="detail-value">{booking.name || 'N/A'}</span>
+                                    </div>
+                                    <div className="detail-row">
+                                        <span className="detail-label">Email:</span>
+                                        <span className="detail-value">{booking.email || 'N/A'}</span>
+                                    </div>
+                                    <div className="detail-row">
+                                        <span className="detail-label">Phone:</span>
+                                        <span className="detail-value">{booking.phone || 'N/A'}</span>
+                                    </div>
+                                    <div className="detail-row">
+                                        <span className="detail-label">Address:</span>
+                                        <span className="detail-value">{booking.address || 'N/A'}</span>
+                                    </div>
+                                    <div className="detail-row">
+                                        <span className="detail-label">Date:</span>
+                                        <span className="detail-value">
+                                            {booking.date ? new Date(booking.date).toLocaleDateString() : 'N/A'}
                                         </span>
-                                    </p>
+                                    </div>
+                                    <div className="detail-row">
+                                        <span className="detail-label">Time:</span>
+                                        <span className="detail-value">
+                                            {booking.eventTime ?
+                                                (booking.eventTime.includes(':') ?
+                                                    booking.eventTime :
+                                                    `${booking.eventTime}:00`)
+                                                : 'N/A'}
+                                        </span>
+                                    </div>
+                                    <div className="detail-row">
+                                        <span className="detail-label">Guests:</span>
+                                        <span className="detail-value">
+                                            {booking.headCount || booking.guestCount || 'N/A'}
+                                        </span>
+                                    </div>
+                                    <div className="detail-row">
+                                        <span className="detail-label">Book Chef Name:</span>
+                                        <span className="detail-value">
+                                            {booking.chef?.chefName ? (
+                                                booking.chef.chefName
+                                            ) : booking.chefName ? (
+                                                booking.chefName
+                                            ) : (
+                                                'Awaiting assignment'
+                                            )}
+                                        </span>
+                                    </div>
+
+                                    {booking.chef?.specialty && (
+                                        <div className="detail-row">
+                                            <span className="detail-label">Chef Specialty:</span>
+                                            <span className="detail-value">{booking.chef.specialty}</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {booking.menu && booking.menu.length > 0 && (
+                                    <div className="menu-section">
+                                        <h5>Selected Menu:</h5>
+                                        <ul className="menu-items">
+                                            {booking.menu.map((item, index) => (
+                                                <li key={index}>{item}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+
+                                {booking.specialRequests && (
+                                    <div className="requests-section">
+                                        <h5>Special Requests:</h5>
+                                        <p>{booking.specialRequests}</p>
+                                    </div>
+                                )}
+
+                                <div className="status-section">
+                                    <span className="status-label">Status:</span>
+                                    <span
+                                        className={`status-badge ${booking.status}`}
+                                        style={{
+                                            backgroundColor:
+                                                booking.status === 'pending' ? '#FFA500' :
+                                                    booking.status === 'accepted' ? '#4CAF50' :
+                                                        booking.status === 'arrived' ? '#2196F3' :
+                                                            booking.status === 'completed' ? '#673AB7' :
+                                                                booking.status === 'cancelled' ? '#F44336' : '#9E9E9E',
+                                            color: 'white',
+                                            padding: '3px 8px',
+                                            borderRadius: '4px',
+                                            fontSize: '0.9rem'
+                                        }}
+                                    >
+                                        {booking.status?.toUpperCase() || 'PENDING'}
+                                    </span>
+                                </div>
+                                {booking.status === 'completed' && (
+                                    <div className="rating-section">
+                                        {booking.rated ? (
+                                            <div className="existing-rating">
+                                                <h5>Your Rating</h5>
+                                                <div className="star-rating-display">
+                                                    {[1, 2, 3, 4, 5].map((star) => (
+                                                        <span
+                                                            key={`star-${star}`}
+                                                            onClick={() => handleRateChef(booking._id, star)}
+                                                        >
+                                                            ★
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                                {booking.comment && (
+                                                    <div className="rating-comment-display">
+                                                        <p>{booking.comment}</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <h5>Rate Your Experience</h5>
+                                                <div className="star-rating">
+                                                    {[1, 2, 3, 4, 5].map((star) => (
+                                                        <span
+                                                            key={star}
+                                                            className={`star ${(ratings[booking._id] || 0) >= star ? 'filled' : ''}`}
+                                                            onClick={() => handleRateChef(booking._id, star)}
+                                                        >
+                                                            ★
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                                <textarea
+                                                    className="rating-comment"
+                                                    placeholder="Leave a comment (optional)"
+                                                    value={comments[booking._id] || ''}
+                                                    onChange={(e) => handleCommentChange(booking._id, e.target.value)}
+                                                />
+                                                <button
+                                                    className="submit-rating-btn"
+                                                    onClick={() => submitRating(booking._id)}
+                                                >
+                                                    Submit Rating
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
                                 )}
                             </div>
                         ))}

@@ -1,12 +1,49 @@
 import Recommendation from '../Models/Recommedations.js';
-import mongoose from 'mongoose';
+import Order from "../Models/Order.js";
+import Restaurant from "../Models/Restaurant.js";
+
+//Frequentorders
+export const getFrequentOrders = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const orders = await Order.find({ userId });
+
+    const restaurantCount = {};
+    orders.forEach(order => {
+      const rid = order.restaurantId.toString(); 
+      restaurantCount[rid] = (restaurantCount[rid] || 0) + 1;
+    });
+
+    const frequentRestaurantIds = Object.keys(restaurantCount);
+
+    const restaurants = await Restaurant.find({ _id: { $in: frequentRestaurantIds } });
+
+    const response = restaurants.map(r => ({
+      id: r._id.toString(), 
+      name: r.name,
+      image: r.image,
+      cuisine: r.cuisine,
+      address: r.address,
+      time: r.time,
+      totalOrders: restaurantCount[r._id.toString()] || 0 
+    }));
+
+    res.status(200).json(response);
+  } catch (err) {
+    console.error("Error fetching frequent orders:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 
 // Create a recommendation
 export const createRecommendation = async (req, res) => {
   try {
-    const { userId, restaurantId, rating, liked, recommendedBy, sharedWith } = req.body;
+    const userId = req.user.id;
+    const { restaurantId, rating, liked } = req.body;
 
-    if (!userId || !restaurantId || !rating) {
+    if (!restaurantId || !rating) {
       return res.status(400).json({ message: 'Missing required fields.' });
     }
 
@@ -15,8 +52,7 @@ export const createRecommendation = async (req, res) => {
       restaurantId,
       rating,
       liked,
-      recommendedBy: recommendedBy || userId,
-      sharedWith
+      recommendedBy: userId
     });
 
     await newRecommendation.save();
@@ -27,17 +63,16 @@ export const createRecommendation = async (req, res) => {
   }
 };
 
-
-// Get all recommendations 
+// Get all recommendations (for logged-in user)
 export const getRecommendations = async (req, res) => {
   try {
-    const { userId, restaurantId } = req.query;
-    const filter = {};
+    const userId = req.user.id;
 
-    if (userId) filter.userId = userId;
-    if (restaurantId) filter.restaurantId = restaurantId;
+    const recommendations = await Recommendation.find({ userId })
+      .populate('restaurantId')
+      .populate('recommendedBy', 'name')
+      .sort({ createdAt: -1 });
 
-    const recommendations = await Recommendation.find(filter).sort({ createdAt: -1 });
     res.json(recommendations);
   } catch (error) {
     console.error('Error fetching recommendations:', error);
@@ -45,7 +80,7 @@ export const getRecommendations = async (req, res) => {
   }
 };
 
-// Get single recommendation 
+// Get single recommendation by ID
 export const getRecommendationById = async (req, res) => {
   try {
     const { id } = req.query;
@@ -61,7 +96,7 @@ export const getRecommendationById = async (req, res) => {
   }
 };
 
-// Update recommendation 
+// Update recommendation
 export const updateRecommendation = async (req, res) => {
   try {
     const { id } = req.query;
@@ -77,7 +112,7 @@ export const updateRecommendation = async (req, res) => {
   }
 };
 
-// Delete recommendation 
+// Delete recommendation
 export const deleteRecommendation = async (req, res) => {
   try {
     const { id } = req.query;
@@ -89,28 +124,6 @@ export const deleteRecommendation = async (req, res) => {
     res.json({ message: 'Recommendation deleted successfully.' });
   } catch (error) {
     console.error('Error deleting recommendation:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
-// Friend Recommedations
-export const getFriendRecommendations = async (req, res) => {
-  try {
-    const userId = req.user?.id;
-    if (!userId) return res.status(400).json({ message: 'User ID is required.' });
-
-    const userObjectId = new mongoose.Types.ObjectId(userId);
-
-    const friendRecs = await Recommendation.find({
-      sharedWith: userObjectId,
-      recommendedBy: { $ne: userObjectId }
-    })
-      .populate('restaurantId')
-      .populate('recommendedBy', 'name');
-
-    res.json(friendRecs);
-  } catch (error) {
-    console.error('Error fetching friend recommendations:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };

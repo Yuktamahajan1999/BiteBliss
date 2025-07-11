@@ -22,10 +22,15 @@ let UserSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ['user', 'restaurantowner', 'chef', 'admin'],
+        enum: ['user', 'restaurantowner', 'chef', 'admin', 'deliverypartner'],
         default: 'user',
         lowercase: true,
     },
+    status: {
+        type: String,
+        enum: ['pending', 'approved', 'rejected'],
+        default: 'approved',
+    }
 }, { timestamps: true });
 
 let User = mongoose.model("User", UserSchema);

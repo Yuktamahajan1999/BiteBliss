@@ -4,7 +4,8 @@ import {
   getChefProfiles,
   updateChefProfile,
   deleteChefProfile,
-  getmychefprofile
+  approveChefProfile,
+  getMyChefProfile
 } from '../Controllers/ChefProfileController.js';
 import checkLogin from '../Middlewares/CheckLogin.js';
 import checkRole from '../Middlewares/CheckRole.js';
@@ -18,7 +19,7 @@ chefFormrouter.post('/', checkLogin, checkRole(['chef']), createChefProfile);
 chefFormrouter.get('/getChefProfile', checkLogin, checkRole(['chef']), getChefProfiles);
 
 // Get single profile
-chefFormrouter.get('/getmyProfile', checkLogin, checkRole(['chef']), getmychefprofile);
+chefFormrouter.get('/getmyChefProfile', checkLogin, checkRole(['chef']), getMyChefProfile);
 
 // Update profile 
 chefFormrouter.put('/updateChefprofile', checkLogin, checkRole(['chef']), updateChefProfile);
@@ -26,6 +27,7 @@ chefFormrouter.put('/updateChefprofile', checkLogin, checkRole(['chef']), update
 // Delete profile 
 chefFormrouter.delete('/deleteChefprofile', checkLogin, checkRole(['chef']), deleteChefProfile);
 
-
+//get approve status
+chefFormrouter.put('/approvechef',checkLogin,approveChefProfile)
 
 export default chefFormrouter;

@@ -41,14 +41,6 @@ const SignUp = () => {
     }
 
     try {
-      console.log("Sending data:", {
-        name: formData.name,
-        email: formData.email,
-        password: formData.password,
-        phoneNumber: formData.mobile,
-        role: formData.role
-      });
-
       const response = await axios.post("http://localhost:8000/user/register", {
         name: formData.name,
         email: formData.email,
@@ -58,6 +50,7 @@ const SignUp = () => {
       });
 
       const { token, user } = response.data;
+
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
       localStorage.setItem('isLoggedIn', 'true');
@@ -66,11 +59,22 @@ const SignUp = () => {
       toast.info('Welcome to Bite Bliss!', { position: 'top-center', autoClose: 3000 });
 
       navigate('/delivery');
+
     } catch (error) {
-      console.error("Registration error:", error.response?.data || error.message);
-      toast.error("Registration Failed", { position: "top-center", autoClose: 3000 });
+      if (error.response && error.response.data && error.response.data.message) {
+        toast.error(`Registration Failed: ${error.response.data.message}`, {
+          position: "top-center",
+          autoClose: 3000
+        });
+      } else {
+        toast.error("Registration Failed", {
+          position: "top-center",
+          autoClose: 3000
+        });
+      }
     }
   };
+
 
   return (
     <div className="signup-container">
@@ -117,9 +121,10 @@ const SignUp = () => {
           <select name="role" value={formData.role} onChange={handleChange} required>
             <option value="">Select Role</option>
             <option value="user">User</option>
-            <option value="restaurant">Restaurant Owner</option>
+            <option value="restaurantowner">Restaurant Owner</option>
             <option value="chef">Chef</option>
             <option value="admin">Admin</option>
+            <option value="deliverypartner">Delivery Partner</option>
           </select>
         </div>
 

@@ -28,9 +28,8 @@ const ValidationMiddleware = [
 
   body('role')
     .notEmpty().withMessage("Role is required")
-    .isIn(['user', 'restaurantowner', 'chef', 'admin']).withMessage("Invalid role"),
-];
-
+    .isIn(['user', 'restaurantowner', 'chef', 'admin', 'deliverypartner']).withMessage("Invalid role"),
+]
 export { ValidationMiddleware };
 
 // Login Validation
@@ -117,10 +116,6 @@ export const donationValidation = [
   body('status')
     .optional()
     .isIn(['pending', 'completed', 'failed']).withMessage('Invalid status'),
-
-  body('userId')
-    .notEmpty().withMessage('User ID is required')
-    .isMongoId().withMessage('Must be valid Mongo ID'),
 ];
 
 // Dining Validation
@@ -219,4 +214,68 @@ export const cateringBookingValidation = [
   body('headCount')
     .optional()
     .isInt({ min: 1, max: 20 }).withMessage("Headcount must be a number between 1 and 20"),
+];
+
+
+// Application validations
+const applicationValidationRules = [
+  body("name")
+    .notEmpty()
+    .withMessage("Name is required"),
+
+  body("email")
+    .isEmail()
+    .withMessage("A valid email is required"),
+
+  body("phone")
+    .notEmpty()
+    .withMessage("Phone number is required")
+    .matches(/^[6-9]\d{9}$/)
+    .withMessage("Phone number must be a valid 10-digit Indian mobile number"),
+
+  body("position")
+    .notEmpty()
+    .withMessage("Position is required")
+    .isIn(['Delivery Partner', 'Chef', 'Customer Support'])
+    .withMessage("Invalid position selected"),
+
+  body("experience")
+    .notEmpty()
+    .withMessage("Experience is required")
+    .isLength({ min: 10 })
+    .withMessage("Experience description should be at least 10 characters"),
+];
+
+export { applicationValidationRules };
+
+// Address Validation
+export const addressValidation = [
+  body('name')
+    .notEmpty().withMessage('Name is required')
+    .isLength({ min: 2, max: 50 }).withMessage('Name should be 2 to 50 characters long'),
+
+  body('address')
+    .notEmpty().withMessage('Address is required')
+    .isLength({ min: 5 }).withMessage('Address should be at least 5 characters'),
+
+  body('phone')
+    .notEmpty().withMessage('Phone number is required')
+    .isMobilePhone('en-IN').withMessage('Enter a valid Indian mobile number')
+    .isLength({ min: 10, max: 10 }).withMessage('Phone number must be 10 digits'),
+
+  body('pincode')
+    .notEmpty().withMessage('Pincode is required')
+    .isPostalCode('IN').withMessage('Enter a valid Indian PIN code'),
+
+  body('city')
+    .optional()
+    .isString().withMessage('City must be a string'),
+
+  body('state')
+    .optional()
+    .isString().withMessage('State must be a string'),
+
+  body('country')
+    .optional()
+    .isString().withMessage('Country must be a string'),
 ];

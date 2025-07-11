@@ -1,6 +1,6 @@
+import mongoose from "mongoose";
 import Video from "../Models/Video.js";
 import { uploadToCloudinary } from "../Middlewares/UploadMiddleware.js";
-import User from '../Models/User.js'
 // Get videos 
 export const getVideos = async (req, res) => {
   try {
@@ -38,8 +38,6 @@ export const uploadVideo = async (req, res) => {
     if (!uploadedBy) {
       return res.status(400).json({ message: "uploadedBy is required" });
     }
-
-    // Upload video file to cloudinary if present
     let videoUrl = "";
     let thumbUrl = thumbnail;
 
@@ -74,29 +72,33 @@ export const uploadVideo = async (req, res) => {
   }
 };
 
-// Add comment to a video
+// Add a comment to a video
 export const addComment = async (req, res) => {
   try {
-    const { videoId, userId, text } = req.body;
-    if (!videoId || !userId || !text) {
-      return res.status(400).json({ message: "videoId, userId and text are required" });
+    const { videoId, text } = req.body;
+    const { id: userId, name: userName, role: userType } = req.user;
+
+    if (!videoId || !text || !userId || !userName || !userType) {
+      return res.status(400).json({ message: "All fields required" });
     }
 
     const video = await Video.findById(videoId);
-    if (!video) {
-      return res.status(404).json({ message: "Video not found" });
-    }
+    if (!video) return res.status(404).json({ message: "Video not found" });
 
-    const user = await User.findById(userId);
-    const userName = user ? user.name : "Anonymous";
-
-    video.comments.push({ text, userId, userName });
-    video.updatedAt = new Date();
+    video.comments.push({ text, userId, userName, userType });
+    video.comments.forEach(c => {
+      if (!c.userType) c.userType = "User";
+      if (Array.isArray(c.replies)) {
+        c.replies.forEach(r => {
+          if (!r.userType) r.userType = "User";
+        });
+      }
+    });
     await video.save();
 
     res.status(201).json({ message: "Comment added", comments: video.comments });
   } catch (error) {
-    res.status(500).json({ message: "Failed to add comment", error: error.message });
+    res.status(500).json({ message: "Comment failed", error: error.message });
   }
 };
 
@@ -163,18 +165,55 @@ export const updateVideo = async (req, res) => {
 // Votes for video
 export const upvoteVideo = async (req, res) => {
   try {
-    const videoId = req.query.id;
-    if (!videoId) return res.status(400).json({ message: "Video ID is required" });
+    const { videoId } = req.query;
+    if (!videoId || !mongoose.Types.ObjectId.isValid(videoId)) {
+      return res.status(400).json({ message: "Invalid video ID" });
+    }
+
+    const updated = await Video.findByIdAndUpdate(
+      videoId,
+      { $inc: { votes: 1 } },
+      { new: true }
+    );
+
+    if (!updated) return res.status(404).json({ message: "Video not found" });
+
+    res.status(200).json({ message: "Video upvoted", votes: updated.votes });
+  } catch (error) {
+    res.status(500).json({ message: "Vote failed", error: error.message });
+  }
+};
+
+
+// Reply Comment
+export const addReply = async (req, res) => {
+  try {
+    const { videoId, commentId, text } = req.body;
+    const { id: userId, name: userName, role: userType } = req.user;
+
+    if (!videoId || !commentId || !text || !userId || !userName || !userType) {
+      return res.status(400).json({ message: "All fields required" });
+    }
 
     const video = await Video.findById(videoId);
     if (!video) return res.status(404).json({ message: "Video not found" });
 
-    video.votes = (video.votes || 0) + 1;
+    const comment = video.comments.id(commentId);
+    if (!comment) return res.status(404).json({ message: "Comment not found" });
+
+    comment.replies.push({ text, userId, userName, userType });
+    video.comments.forEach(c => {
+      if (!c.userType) c.userType = "User";
+      if (Array.isArray(c.replies)) {
+        c.replies.forEach(r => {
+          if (!r.userType) r.userType = "User";
+        });
+      }
+    });
     await video.save();
 
-    res.status(200).json({ message: "Video upvoted successfully", votes: video.votes });
+    res.status(201).json({ message: "Reply added", replies: comment.replies });
   } catch (error) {
-    res.status(500).json({ message: "Failed to upvote video", error: error.message });
+    res.status(500).json({ message: "Reply failed", error: error.message });
   }
-};
-
+};  

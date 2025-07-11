@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable no-unused-vars */
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
@@ -16,7 +17,8 @@ function ChefForm() {
         bio: '',
         contactNumber: '',
         isAvailable: true,
-        isHygienic: false
+        isHygienic: false,
+        isApproved: false
     };
 
     const [formData, setFormData] = useState(initialFormState);
@@ -26,6 +28,9 @@ function ChefForm() {
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [loadingBookings, setLoadingBookings] = useState(false);
+    const [isApproved, setIsApproved] = useState(null);
+    const [chefStatus, setChefStatus] = useState(null);
+    const [profileData, setProfileData] = useState(null);
 
     const cuisineOptions = [
         'Butter Chicken', 'Masala Dosa', 'Chilli Garlic Noodles',
@@ -43,24 +48,28 @@ function ChefForm() {
         { value: 'non-veg', label: 'Non-Vegetarian' },
         { value: 'both', label: 'Both' }
     ];
+
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
+
         setFormData(prev => {
+            if (type === 'checkbox' && name === 'cuisines') {
+                const currentCuisines = Array.isArray(prev.cuisines) ? prev.cuisines : [];
+                return {
+                    ...prev,
+                    cuisines: checked
+                        ? [...currentCuisines, value]
+                        : currentCuisines.filter(c => c !== value)
+                };
+            }
+
             if (type === 'checkbox') {
                 return { ...prev, [name]: checked };
             }
-            if (name === 'cuisines') {
-                return {
-                    ...prev,
-                    cuisines: prev.cuisines.includes(value)
-                        ? prev.cuisines.filter(c => c !== value)
-                        : [...prev.cuisines, value]
-                };
-            }
+
             return { ...prev, [name]: value };
         });
     };
-
 
     const validateForm = () => {
         if (!formData.chefName.trim()) {
@@ -106,12 +115,17 @@ function ChefForm() {
         try {
             setLoading(true);
             const token = localStorage.getItem('token');
+
             if (!token) {
-                throw new Error('No authentication token found');
+                setIsApproved(false);
+                setChefStatus('no-token');
+                setLoading(false);
+                return;
             }
 
-            const response = await axios.get('http://localhost:8000/chefform/getmyProfile', {
-                headers: { Authorization: `Bearer ${token}` }
+            const response = await axios.get('http://localhost:8000/chefform/getmychefProfile', {
+                headers: { Authorization: `Bearer ${token}` },
+                timeout: 10000
             });
 
             if (response.data) {
@@ -120,40 +134,57 @@ function ChefForm() {
                 setFormData({
                     ...initialFormState,
                     ...profile,
-                    signatureDishes: profile.signatureDishes?.join(', ') || '',
-                    menu: profile.menu?.join(', ') || '',
+                    cuisines: Array.isArray(profile.cuisines) ? profile.cuisines : [],
+                    signatureDishes: Array.isArray(profile.signatureDishes)
+                        ? profile.signatureDishes.join(', ')
+                        : profile.signatureDishes || '',
+                    menu: Array.isArray(profile.menu) ? profile.menu.join(', ') : profile.menu || '',
                 });
                 setIsEditing(true);
+                setIsApproved(profile.isApproved ?? false);
+                setChefStatus(profile.status || 'pending');
             }
         } catch (error) {
+            console.error('Error in getChefProfile:', error);
+            setIsApproved(false);
+            setChefStatus('error');
+
             if (error.response?.status === 404) {
+                setIsApproved(false);
+                setChefStatus('not-found');
                 setIsEditing(false);
                 setChefId(null);
                 setFormData(initialFormState);
             } else {
-                console.error('Error fetching profile:', error);
-                toast.error(error.response?.data?.message || 'Failed to fetch profile');
+                toast.error(error.response?.data?.message || 'Failed to load profile');
             }
         } finally {
             setLoading(false);
         }
-
     };
     useEffect(() => {
         getChefProfile();
     }, []);
-
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!validateForm()) return;
 
         setIsSubmitting(true);
+
         const payload = {
             ...formData,
             price: Number(formData.price),
-            signatureDishes: formData.signatureDishes.split(',').map(d => d.trim()),
-            menu: formData.menu.split(',').map(d => d.trim())
+            signatureDishes: typeof formData.signatureDishes === 'string'
+                ? formData.signatureDishes.split(',').map(d => d.trim()).filter(d => d)
+                : Array.isArray(formData.signatureDishes)
+                    ? formData.signatureDishes
+                    : [],
+            menu: typeof formData.menu === 'string'
+                ? formData.menu.split(',').map(d => d.trim()).filter(d => d)
+                : Array.isArray(formData.menu)
+                    ? formData.menu
+                    : []
         };
 
         try {
@@ -169,19 +200,20 @@ function ChefForm() {
                     'Content-Type': 'application/json',
                 }
             });
+            console.log("Submitting payload:", payload);
 
             toast.success(`Profile ${chefId ? 'updated' : 'created'} successfully`);
-            if (!chefId) {
+            if (!chefId && res.data._id) {
                 setChefId(res.data._id);
                 setIsEditing(true);
             }
+            getChefProfile();
         } catch (err) {
             toast.error(err.response?.data?.error || 'Something went wrong');
         } finally {
             setIsSubmitting(false);
         }
     };
-
     const handleDelete = async () => {
         if (!chefId) return toast.info('No profile to delete');
         const confirm = window.confirm('Are you sure you want to delete your profile?');
@@ -197,6 +229,7 @@ function ChefForm() {
             setFormData(initialFormState);
             setChefId(null);
             setIsEditing(false);
+            setIsApproved(false);
         } catch (err) {
             toast.error('Failed to delete profile');
         }
@@ -208,17 +241,35 @@ function ChefForm() {
         setIsEditing(false);
     };
 
-    const getChefBookings = async (chefId) => {
+       useEffect(() => {
+        if (chefId) {
+            getChefBookings(); 
+
+            const interval = setInterval(() => {
+                getChefBookings();
+            }, 30000); 
+
+            return () => clearInterval(interval);
+        }
+    }, [chefId]);
+    const getChefBookings = async () => {
         setLoadingBookings(true);
         try {
             const token = localStorage.getItem('token');
-            const response = await axios.get(`http://localhost:8000/chefbook/getBookingbyChef?id=${chefId}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setBookings(response.data);
+            const response = await axios.get(
+                'http://localhost:8000/chefbook/getBookingbyChef',
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+
+            if (response.data && Array.isArray(response.data)) {
+                setBookings(response.data);
+            } else {
+                console.warn("Unexpected response format:", response.data);
+                setBookings([]);
+            }
         } catch (error) {
-            console.error('Error fetching bookings:', error);
-            toast.error(error.response?.data?.error || 'Failed to load bookings');
+            console.error("Error fetching bookings:", error);
+            toast.error(error.response?.data?.message || 'Failed to load bookings');
             setBookings([]);
         } finally {
             setLoadingBookings(false);
@@ -226,26 +277,22 @@ function ChefForm() {
     };
 
     useEffect(() => {
-        getChefProfile();
-    }, []);
-
-    useEffect(() => {
         if (chefId) {
-            getChefBookings(chefId);
+            getChefBookings();
         }
     }, [chefId]);
 
     const handleAcceptBooking = async (bookingId) => {
         try {
             const token = localStorage.getItem('token');
-            await axios.put(`http://localhost:8000/chefbook/acceptbooking?id=${bookingId}`, {}, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-
+            await axios.put(
+                `http://localhost:8000/chefbook/acceptbooking?id=${bookingId}`,
+                {},
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
             toast.success('Booking accepted');
-            getChefBookings(chefId);
+            getChefBookings();
         } catch (error) {
-            console.error('Error accepting booking:', error);
             toast.error('Failed to accept booking');
         }
     };
@@ -260,14 +307,13 @@ function ChefForm() {
                     headers: { Authorization: `Bearer ${token}` }
                 }
             );
-
             toast.success('Booking cancelled');
             getChefBookings(chefId);
         } catch (error) {
-            console.error('Error cancelling booking:', error);
-            toast.error(error.response?.data?.error || 'Failed to cancel booking');
+            toast.error('Failed to cancel booking');
         }
     };
+
     const handleArrivedBooking = async (bookingId) => {
         try {
             const token = localStorage.getItem('token');
@@ -279,8 +325,7 @@ function ChefForm() {
             toast.success('Marked as arrived');
             getChefBookings(chefId);
         } catch (error) {
-            console.error('Error marking as arrived:', error);
-            toast.error(error.response?.data?.error || 'Failed to mark as arrived');
+            toast.error('Failed to mark as arrived');
         }
     };
 
@@ -292,16 +337,37 @@ function ChefForm() {
                 {},
                 { headers: { Authorization: `Bearer ${token}` } }
             );
-
             toast.success('Booking marked as completed');
             getChefBookings(chefId);
         } catch (error) {
-            console.error('Error completing booking:', error);
-            toast.error(error.response?.data?.error || 'Failed to complete booking');
+            toast.error('Failed to complete booking');
         }
     };
 
-    if (loading) return <p>Loading bookings...</p>;
+
+    if (loading || isApproved === null) {
+        console.log("Rendering - Loading state:", { loading, isApproved });
+        return <p>Loading profile...</p>;
+    }
+
+    console.log("Rendering - Main check:", {
+        isApproved,
+        chefStatus,
+        loading,
+        isEditing,
+        formData: Object.keys(formData)
+    });
+
+    {
+        !isApproved && (
+            <p className="approval-note" style={{ color: '#cc0000', marginTop: '0.5rem' }}>
+                ⚠️ Your profile is pending admin approval. You can fill the form, but cannot submit until approved.
+            </p>
+        )
+    }
+
+
+
     return (
         <div>
             <form onSubmit={handleSubmit} className="chef-form">
@@ -345,7 +411,7 @@ function ChefForm() {
                                     type="checkbox"
                                     name="cuisines"
                                     value={cuisine}
-                                    checked={formData.cuisines.includes(cuisine)}
+                                    checked={Array.isArray(formData.cuisines) && formData.cuisines.some(c => c.trim() === cuisine.trim())}
                                     onChange={handleChange}
                                     className="chef-form__checkbox"
                                 />
@@ -489,7 +555,7 @@ function ChefForm() {
                 <div className="chef-form__actions">
                     <button
                         type="submit"
-                        className="chef-form__submit"
+                        className={`chef-form__submit ${isEditing ? 'update' : 'create'}`}
                         disabled={isSubmitting}
                     >
                         {isSubmitting ? 'Saving...' : isEditing ? 'Update Profile' : 'Create Profile'}
@@ -509,12 +575,12 @@ function ChefForm() {
                                 className="chef-form__reset"
                                 onClick={resetForm}
                             >
-                                Create New Profile
+                                Reset Form
                             </button>
                         </>
                     )}
                 </div>
-            </form>
+            </form >
             {isEditing && (
                 <div className="bookings-container">
                     <h3 className="bookings-title">Your Bookings</h3>
@@ -573,19 +639,19 @@ function ChefForm() {
                                             <span className="detail-label">Menu Selected:</span>
 
                                             <ul className="menu-items">
-                                                {((booking.menu && Array.isArray(booking.menu) && booking.menu.length > 0)
-                                                    ? booking.menu
-                                                    : (booking.selectedMenuItems || [])
-                                                ).map((item, index) => (
-                                                    <li key={index} className="menu-item">
-                                                        <span className="menu-icon">🍽️</span>
-                                                        {item}
-                                                    </li>
-                                                ))}
+                                                {booking.menu && Array.isArray(booking.menu) && booking.menu.length > 0 ? (
+                                                    booking.menu.map((item, index) => (
+                                                        <li key={index} className="menu-item">
+                                                            <span className="menu-icon">🍽️</span>
+                                                            {item}
+                                                        </li>
+                                                    ))
+                                                ) : (
+                                                    <li className="menu-item">No menu items selected</li>
+                                                )}
                                             </ul>
                                         </div>
                                     </div>
-
                                     <div className="booking-actions">
                                         {booking.status === 'pending' && (
                                             <>
@@ -604,26 +670,28 @@ function ChefForm() {
                                             </>
                                         )}
                                         {booking.status === 'accepted' && (
-                                            <>
-                                                <button
-                                                    className="btn arrived-btn"
-                                                    onClick={() => handleArrivedBooking(booking._id)}
-                                                >
-                                                    🚗 Mark Arrived
-                                                </button>
-                                                <button
-                                                    className="btn complete-btn"
-                                                    onClick={() => handleCompleteBooking(booking._id)}
-                                                >
-                                                    ✓ Mark Completed
-                                                </button>
-                                                <button
-                                                    className="btn cancel-btn"
-                                                    onClick={() => handleCancelBooking(booking._id)}
-                                                >
-                                                    ✕ Cancel Booking
-                                                </button>
-                                            </>
+                                            <button
+                                                className="btn arrived-btn"
+                                                onClick={() => handleArrivedBooking(booking._id)}
+                                            >
+                                                🚗 Mark Arrived
+                                            </button>
+                                        )}
+                                        {booking.status === 'arrived' && (
+                                            <button
+                                                className="btn complete-btn"
+                                                onClick={() => handleCompleteBooking(booking._id)}
+                                            >
+                                                ✓ Mark Completed
+                                            </button>
+                                        )}
+                                        {(booking.status === 'accepted' || booking.status === 'arrived') && (
+                                            <button
+                                                className="btn cancel-btn"
+                                                onClick={() => handleCancelBooking(booking._id)}
+                                            >
+                                                ✕ Cancel Booking
+                                            </button>
                                         )}
                                     </div>
                                 </div>
@@ -635,8 +703,9 @@ function ChefForm() {
                         </div>
                     )}
                 </div>
-            )}
-        </div>
+            )
+            }
+        </div >
     );
 }
 

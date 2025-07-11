@@ -1,26 +1,29 @@
+/* eslint-disable no-unused-vars */
 import axios from "axios";
-// eslint-disable-next-line no-unused-vars
 import React, { useEffect, useState } from "react";
+import { toast } from 'react-toastify';
 
 function RecipeOfTheDay() {
   const [recipe, setRecipe] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const token = localStorage.getItem("token");
 
   useEffect(() => {
     const retrieveRecipeOfTheDay = async () => {
       try {
-        const res = await axios.get("http://localhost:8000/recipebook/getrecipeofday");
+        const res = await axios.get("http://localhost:8000/recipebook/getrecipeofday", {
+          withCredentials: true
+        });
         if (res.data.recipe) {
           setRecipe(res.data.recipe);
         } else {
           setError("No recipe available today");
         }
       } catch (err) {
-        if (err.response && err.response.status === 404) {
+        if (err.response?.status === 404) {
           setError("No recipe available today");
         } else {
-          console.error("Failed to load the Recipe of the Day", err);
           setError("Failed to load recipe. Please try again later.");
         }
       } finally {
@@ -32,19 +35,13 @@ function RecipeOfTheDay() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="recipe-of-day-loading">
-        ⏳ Getting today&apos;s special ready...
-      </div>
-    );
+    return <div className="recipe-of-day-loading">⏳ Getting today&apos;s special ready...</div>;
   }
 
   if (error || !recipe) {
     return (
       <div className="recipe-of-day-no-recipe">
-        <div className="recipe-of-day-no-recipe-placeholder">
-          🍳
-        </div>
+        <div className="recipe-of-day-no-recipe-placeholder">🍳</div>
         <p className="recipe-of-day-no-recipe-text">
           {error || "No recipe of the day available right now."} <br />
           Come back soon for something delicious! 🍲
@@ -87,7 +84,7 @@ function RecipeOfTheDay() {
         <div className="recipe-of-day-section">
           <h4>📝 Ingredients:</h4>
           <ul>
-            {recipe.ingredients.map((item, index) => (
+            {recipe.ingredients?.map((item, index) => (
               <li key={index}>{item}</li>
             ))}
           </ul>
@@ -96,7 +93,7 @@ function RecipeOfTheDay() {
         <div className="recipe-of-day-section">
           <h4>👨‍🍳 Steps:</h4>
           <ol>
-            {recipe.steps.map((step, index) => (
+            {recipe.steps?.map((step, index) => (
               <li key={index}>{step}</li>
             ))}
           </ol>

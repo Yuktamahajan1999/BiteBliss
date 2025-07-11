@@ -14,6 +14,7 @@ const TableBooking = () => {
     const [chatInput, setChatInput] = useState('');
     const [showChat, setShowChat] = useState(false);
     const { id: restaurantId } = useParams();
+    const [userBookings, setUserBookings] = useState([]);
     const [bookingId, setBookingId] = useState(null);
     const [formData, setFormData] = useState({
         fullName: '',
@@ -35,6 +36,29 @@ const TableBooking = () => {
             }
         };
     }, [selectedMedia]);
+
+    useEffect(() => {
+        const storedId = localStorage.getItem('bookingId');
+        if (storedId) {
+            setBookingId(storedId);
+        }
+    }, []);
+
+    useEffect(() => {
+        const fetchExperiences = async () => {
+            if (activeTab === 'experience' && bookingId) {
+                try {
+                    const res = await axios.get(`http://localhost:8000/bookings/getExperience?id=${bookingId}`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    setExperiences(res.data.experiences || []);
+                } catch (err) {
+                    console.error('Error fetching experiences:', err);
+                }
+            }
+        };
+        fetchExperiences();
+    }, [activeTab, bookingId, token]);
 
     const handleMediaChange = (e) => {
         const file = e.target.files[0];
@@ -66,11 +90,15 @@ const TableBooking = () => {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
-            toast.success("Table Booked", {
-                position: "top-center",
-                autoClose: 3000
+            const newBookingId = res.data._id || res.data.booking?._id;
+            setBookingId(newBookingId);
+            localStorage.setItem('bookingId', newBookingId);
+
+            const bookingsRes = await axios.get('http://localhost:8000/bookings/getBookingsByUser', {
+                headers: { Authorization: `Bearer ${token}` }
             });
-            setBookingId(res.data._id || res.data.booking?._id);
+            setUserBookings(bookingsRes.data.bookings || []);
+
             setFormData({
                 fullName: '',
                 email: '',
@@ -80,9 +108,14 @@ const TableBooking = () => {
                 numberOfGuests: '',
                 specialRequests: '',
             });
+
+            toast.info('Your booking request has been submitted. You will be notified when the restaurant confirms.', {
+                position: "top-center",
+                autoClose: 5000
+            });
         } catch (error) {
             console.error('Booking error:', error.response?.data || error.message);
-            alert(error.response?.data?.error || 'Booking failed');
+            toast.error(error.response?.data?.error || 'Booking failed');
         }
     };
 
@@ -90,14 +123,13 @@ const TableBooking = () => {
         if (!experienceInput.trim()) return;
 
         if (!bookingId) {
-            alert('Please book a table before sharing an experience.');
+            toast.error('Please book a table before sharing an experience.');
             return;
         }
 
         try {
             const expFormData = new FormData();
             expFormData.append('text', experienceInput);
-
             if (selectedMedia?.file) {
                 expFormData.append('media', selectedMedia.file);
             }
@@ -113,21 +145,13 @@ const TableBooking = () => {
                 }
             );
 
-            console.log('Experience added:', res.data);
-
-            setExperiences(prev => [...prev, {
-                text: experienceInput,
-                media: selectedMedia ? {
-                    url: selectedMedia.url,
-                    type: selectedMedia.type
-                } : null
-            }]);
-
+            setExperiences(prev => [...prev, res.data.experience]);
             setExperienceInput('');
             setSelectedMedia(null);
+            toast.success('Experience shared successfully!');
         } catch (error) {
             console.error('Experience error:', error.response?.data || error.message);
-            alert(error.response?.data?.error || 'Failed to add experience');
+            toast.error(error.response?.data?.error || 'Failed to add experience');
         }
     };
 
@@ -140,6 +164,25 @@ const TableBooking = () => {
         setChatInput('');
     };
 
+    useEffect(() => {
+        const fetchUserBookings = async () => {
+            try {
+                const res = await axios.get('http://localhost:8000/bookings/getBookingsByUser', {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                setUserBookings(res.data.bookings || []);
+            } catch (error) {
+                console.error('Error fetching user bookings:', error.response?.data || error.message);
+                toast.error("Could not load your bookings");
+                setUserBookings([]);
+            }
+        };
+
+        if (activeTab === 'mybookings' || activeTab === 'experience') {
+            fetchUserBookings();
+        }
+    }, [activeTab, token]);
+
     return (
         <div className="table-booking-container">
             <h1 className="page-title">Table Reservations</h1>
@@ -148,6 +191,7 @@ const TableBooking = () => {
                 <button onClick={() => setActiveTab('form')} className={activeTab === 'form' ? 'active' : ''}>Book Table</button>
                 <button onClick={() => setActiveTab('experience')} className={activeTab === 'experience' ? 'active' : ''}>Experiences</button>
                 <button onClick={() => setActiveTab('help')} className={activeTab === 'help' ? 'active' : ''}>Help</button>
+                <button onClick={() => setActiveTab('mybookings')} className={activeTab === 'mybookings' ? 'active' : ''}>My Bookings</button>
             </div>
 
             {activeTab === 'form' && (
@@ -168,86 +212,98 @@ const TableBooking = () => {
 
             {activeTab === 'experience' && (
                 <div className="tab-content">
-                    <h2 className="section-title">Share Your Experience</h2>
-
-                    <textarea
-                        value={experienceInput}
-                        onChange={(e) => setExperienceInput(e.target.value)}
-                        placeholder="Write your experience here..."
-                        className="experience-textarea"
-                    />
-
-                    <div className="file-upload-wrapper">
-                        <label htmlFor="media-upload" className="custom-file-label">
-                            {selectedMedia
-                                ? selectedMedia.type.startsWith('video')
-                                    ? 'Video Selected'
-                                    : 'Image Selected'
-                                : 'Upload Image or Video'}
-                        </label>
-                        <input
-                            id="media-upload"
-                            type="file"
-                            accept="image/*,video/*"
-                            className="hidden-file-input"
-                            onChange={handleMediaChange}
-                        />
-                        {selectedMedia && (
-                            <div className="media-preview-images">
-                                <button
-                                    className="close-btn-image"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedMedia(null);
-                                    }}
-                                    aria-label="Close"
-                                >
-                                    &#10005;
-                                </button>
-                                {selectedMedia.type.startsWith('image') ? (
-                                    <img src={selectedMedia.url} alt="Preview" />
-                                ) : (
-                                    <video controls src={selectedMedia.url} />
+                    {userBookings.length === 0 ? (
+                        <p className="empty-msg">You need a booking before sharing your experience.</p>
+                    ) : (
+                        <>
+                            <h2 className="section-title">Share Your Experience</h2>
+                            <textarea
+                                value={experienceInput}
+                                onChange={(e) => setExperienceInput(e.target.value)}
+                                placeholder="Write your experience here..."
+                                className="experience-textarea"
+                            />
+                            <div className="file-upload-wrapper">
+                                <label htmlFor="media-upload" className="custom-file-label">
+                                    {selectedMedia
+                                        ? selectedMedia.type.startsWith('video')
+                                            ? 'Video Selected'
+                                            : 'Image Selected'
+                                        : 'Upload Image or Video'}
+                                </label>
+                                <input
+                                    id="media-upload"
+                                    type="file"
+                                    accept="image/*,video/*"
+                                    className="hidden-file-input"
+                                    onChange={handleMediaChange}
+                                />
+                                {selectedMedia && (
+                                    <div className="media-preview-images">
+                                        <button
+                                            className="close-btn-image"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedMedia(null);
+                                            }}
+                                            aria-label="Close"
+                                        >
+                                            &#10005;
+                                        </button>
+                                        {selectedMedia.type.startsWith('image') ? (
+                                            <img src={selectedMedia.url} alt="Preview" />
+                                        ) : (
+                                            <video controls src={selectedMedia.url} />
+                                        )}
+                                    </div>
                                 )}
                             </div>
-                        )}
-                    </div>
+                            <div className="experience-actions">
+                                <button
+                                    onClick={handleExperienceSubmit}
+                                    disabled={!experienceInput.trim()}
+                                    className="submit-btn"
+                                >
+                                    Share Experience
+                                </button>
+                            </div>
 
-                    <div className="experience-actions">
-                        <button
-                            onClick={handleExperienceSubmit}
-                            disabled={!experienceInput.trim()}
-                            className="submit-btn"
-                        >
-                            Share Experience
-                        </button>
-                    </div>
-
-                    <div className="experience-list">
-                        {experiences.length === 0 ? (
-                            <p className="empty-msg">No experiences shared yet.</p>
-                        ) : (
-                            experiences.map((exp, i) => (
-                                <div key={i} className="experience-card">
-                                    <p>{exp.text}</p>
-                                    {exp.media && (
-                                        exp.media.type.startsWith('video') ? (
-                                            <video src={exp.media.url} controls className="experience-video" />
-                                        ) : (
-                                            <img src={exp.media.url} alt="User experience" className="experience-img" />
-                                        )
-                                    )}
-                                </div>
-                            ))
-                        )}
-                    </div>
+                            <div className="experience-list">
+                                {experiences.length === 0 ? (
+                                    <p className="empty-msg">No experiences shared yet.</p>
+                                ) : (
+                                    experiences.map((exp, i) => (
+                                        <div key={i} className="experience-card">
+                                            <p>{exp.text}</p>
+                                            {exp.media && (
+                                                Array.isArray(exp.media) ? (
+                                                    exp.media.map((mediaItem, index) => (
+                                                        mediaItem.mediaType === 'video' ? (
+                                                            <video key={index} src={mediaItem.mediaUrl} controls className="experience-video" />
+                                                        ) : (
+                                                            <img key={index} src={mediaItem.mediaUrl} alt="User experience" className="experience-img" />
+                                                        )
+                                                    ))
+                                                ) : (
+                                                    exp.media.mediaType === 'video' ? (
+                                                        <video src={exp.media.mediaUrl} controls className="experience-video" />
+                                                    ) : (
+                                                        <img src={exp.media.mediaUrl} alt="User experience" className="experience-img" />
+                                                    )
+                                                )
+                                            )}
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </>
+                    )}
                 </div>
             )}
 
             {activeTab === 'help' && (
                 <div className="tab-content">
                     <h2 className="section-title">Need Help?</h2>
-
                     <div className="help-info">
                         <p>📞 Call us: +91 12345 67890</p>
                         <p>📧 Email: support@bitebliss.com</p>
@@ -292,9 +348,29 @@ const TableBooking = () => {
                     )}
                 </div>
             )}
-        </div>
-    )
-}
 
+            {activeTab === 'mybookings' && (
+                <div className="tab-content">
+                    <h2 className="section-title">My Bookings</h2>
+                    {userBookings.length === 0 ? (
+                        <p className="empty-msg">You have no bookings yet.</p>
+                    ) : (
+                        <ul className="booking-list">
+                            {userBookings.map((booking, index) => (
+                                <li key={booking._id || index} className="booking-item">
+                                    <p><strong>Restaurant:</strong> {booking.restaurantId?.name || "N/A"}</p>
+                                    <p><strong>Date:</strong> {new Date(booking.bookingDate).toLocaleDateString()}</p>
+                                    <p><strong>Time:</strong> {booking.bookingTime}</p>
+                                    <p><strong>Guests:</strong> {booking.numberOfGuests}</p>
+                                    {booking.specialRequests && <p><strong>Requests:</strong> {booking.specialRequests}</p>}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
 
 export default TableBooking;

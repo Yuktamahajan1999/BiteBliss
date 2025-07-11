@@ -1,19 +1,34 @@
-import Notification from "../Models/Notification.js";
+import Notification from "../Models/NotificationModel.js";
 
 // Create a new notification
 export const createNotification = async (req, res) => {
-  const { sms, email, push } = req.query;
-  if (!sms || !email || !push)
+  const { sms, email, push } = req.body;
+  if (sms === undefined || email === undefined || push === undefined) {
     return res.status(400).json({ error: "sms, email, and push are required" });
+  }
 
   try {
     const newNotification = new Notification({ sms, email, push });
     await newNotification.save();
+
+    if (email) {
+      try {
+        await sendConfirmationEmail({
+          email: "user@example.com",
+          name: "User Name",
+          position: "Notification Preference Update",
+        });
+      } catch (emailErr) {
+        console.error("Email sending failed:", emailErr);
+      }
+    }
+
     res.status(201).json({ success: true, data: newNotification });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 };
+
 
 // Get all notifications
 export const getAllNotifications = async (req, res) => {
@@ -41,7 +56,7 @@ export const getNotificationById = async (req, res) => {
 
 // Update notification
 export const updateNotification = async (req, res) => {
-  const { id, sms, email, push } = req.query;
+  const { id, sms, email, push } = req.body;
   if (!id) return res.status(400).json({ error: "id is required" });
 
   try {

@@ -17,6 +17,7 @@ const UserProfileSection = () => {
     file: null
   });
 
+  const [initialProfile, setInitialProfile] = useState(null);
   const [isSaved, setSaved] = useState(false);
   const [isExistingProfile, setIsExistingProfile] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -30,69 +31,66 @@ const UserProfileSection = () => {
   const token = localStorage.getItem('token');
 
   useEffect(() => {
-    if (!token) {
-      toast.error("No authorization token found, please login", { position: "top-center" });
-      return;
-    }
+    const fetchAndSetProfile = async () => {
+      if (!token) {
+        toast.error("No authorization token found, please login", { position: "top-center" });
+        return;
+      }
 
-    const fetchProfile = async () => {
+      let profileData = null;
       try {
         const res = await axios.get("http://localhost:8000/userprofile/getUserProfile", {
           headers: { Authorization: `Bearer ${token}` }
         });
-
         if (res.status === 401) {
           toast.error("Unauthorized access. Please login.", { position: "top-center" });
           return;
         }
-
-        const data = res.data;
-        if (data) {
-          setProfile({
-            name: data.name || "",
-            mobile: data.mobile || "",
-            email: data.email || "",
-            gender: data.gender || "",
-            dob: data.dob ? new Date(data.dob) : null,
-            profileImage: data.profileImage ? data.profileImage : "",
-            file: null
-          });
-          setIsExistingProfile(true);
-          setSaved(true);
-        }
+        profileData = res.data;
       } catch (err) {
-        console.error("Error fetching profile:", err);
-        toast.error("An error occurred while fetching profile", { position: "top-center" });
+        profileData = null;
       }
+
+      let updatedProfile = {
+        name: profileData?.name || "",
+        mobile: profileData?.mobile || "",
+        email: profileData?.email || "",
+        gender: profileData?.gender || "",
+        dob: profileData?.dob ? new Date(profileData.dob) : null,
+        profileImage: profileData?.profileImage || "",
+        file: null
+      };
+
+      if (avatarFile) {
+        const objectUrl = URL.createObjectURL(avatarFile);
+        updatedProfile.profileImage = objectUrl;
+        updatedProfile.file = avatarFile;
+        setIsEditing(true);
+      } else if (selectedAvatar) {
+        updatedProfile.profileImage = selectedAvatar;
+        setIsEditing(true);
+      }
+
+      setProfile(updatedProfile);
+      setInitialProfile(updatedProfile);
+      setIsExistingProfile(!!profileData);
+      setSaved(!!profileData);
+
+      return () => {
+        if (avatarFile) URL.revokeObjectURL(updatedProfile.profileImage);
+      };
     };
 
-    fetchProfile();
-  }, [token]);
-
-useEffect(() => {
-  if (selectedAvatar && avatarFile) {
-    setProfile(prev => ({
-      ...prev,
-      profileImage: URL.createObjectURL(avatarFile), 
-      file: avatarFile
-    }));
-    setIsEditing(true);
-  } else if (selectedAvatar) {
-    setProfile(prev => ({
-      ...prev,
-      profileImage: selectedAvatar.src,
-      file: null
-    }));
-    setIsEditing(true);
-  }
-}, [selectedAvatar, avatarFile]);
+    fetchAndSetProfile();
+  }, [token, location.state]);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      const objectUrl = URL.createObjectURL(file);
       setProfile(prev => ({
         ...prev,
-        profileImage: URL.createObjectURL(file), // preview
+        profileImage: objectUrl,
         file
       }));
       setIsEditing(true);
@@ -100,16 +98,31 @@ useEffect(() => {
   };
 
   const triggerFileInput = () => {
-    fileInputRef.current.click();
+    fileInputRef.current?.click();
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setProfile(prev => ({ ...prev, [name]: value }));
+    setIsEditing(true);
+  };
+
+  const isProfileChanged = () => {
+    if (!initialProfile) return true;
+    const current = { ...profile, dob: profile.dob?.toISOString() };
+    const initial = { ...initialProfile, dob: initialProfile.dob?.toISOString() };
+    delete current.file;
+    delete initial.file;
+    return JSON.stringify(current) !== JSON.stringify(initial);
   };
 
   const handleSave = async (e) => {
     e.preventDefault();
+    if (!isProfileChanged()) {
+      toast.info("No changes to save", { position: "top-center" });
+      return;
+    }
+
     setIsSaving(true);
 
     if (!token) {
@@ -128,39 +141,42 @@ useEffect(() => {
 
       if (profile.file) {
         formData.append('profileImage', profile.file);
-      } else if (profile.profileImage) {
-        formData.append('profileImage', profile.profileImage);
+      } else {
+        formData.append('profileImageUrl', profile.profileImage);
       }
 
       const url = isExistingProfile
         ? 'http://localhost:8000/userprofile/updateProfile'
         : 'http://localhost:8000/userprofile';
-
       const method = isExistingProfile ? axios.put : axios.post;
 
       await method(url, formData, {
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
       });
 
       const updatedProfile = await axios.get("http://localhost:8000/userprofile/getUserProfile", {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      setProfile({
+      const newProfile = {
         name: updatedProfile.data.name || "",
         mobile: updatedProfile.data.mobile || "",
         email: updatedProfile.data.email || "",
         gender: updatedProfile.data.gender || "",
         dob: updatedProfile.data.dob ? new Date(updatedProfile.data.dob) : null,
-        profileImage: updatedProfile.data.profileImage ? updatedProfile.data.profileImage : "",
+        profileImage: updatedProfile.data.profileImage || "",
         file: null
-      });
+      };
 
+      setProfile(newProfile);
+      setInitialProfile(newProfile);
       toast.success("Profile saved successfully!", { position: "top-center" });
       setSaved(true);
       setIsEditing(false);
     } catch (err) {
-      console.error("Error saving profile:", err);
       toast.error(err.response?.data?.message || "An error occurred while saving profile", {
         position: "top-center"
       });
@@ -170,13 +186,15 @@ useEffect(() => {
   };
 
   const handleDelete = async () => {
+    if (!window.confirm("Are you sure you want to delete your profile?")) return;
+
     try {
       await axios.delete("http://localhost:8000/userprofile/deleteProfile", {
         headers: { Authorization: `Bearer ${token}` }
       });
 
       toast.success("Profile deleted successfully", { position: "top-center" });
-      setProfile({
+      const emptyProfile = {
         name: "",
         mobile: "",
         email: "",
@@ -184,11 +202,12 @@ useEffect(() => {
         dob: null,
         profileImage: "",
         file: null
-      });
+      };
+      setProfile(emptyProfile);
+      setInitialProfile(emptyProfile);
       setSaved(false);
       setIsExistingProfile(false);
     } catch (err) {
-      console.error("Error deleting profile:", err);
       toast.error("An error occurred while deleting the profile", { position: "top-center" });
     }
   };
@@ -200,16 +219,13 @@ useEffect(() => {
           <div className="user-profile-picture-wrapper">
             <label htmlFor="profile-upload" className="user-profile-upload-label">
               <img
-                src={
-                  profile.file
-                    ? profile.profileImage
-                    : profile.profileImage
-                      ? profile.profileImage
-                      : "/default-avatar.png"
-                }
+                src={profile.profileImage || "/default-avatar.png"}
                 alt="Profile"
                 className="user-profile-picture"
-                key={profile.profileImage}
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = "/default-avatar.png";
+                }}
               />
               <input
                 id="profile-upload"
@@ -228,19 +244,11 @@ useEffect(() => {
               className="user-profile-picture-action-btn"
               onClick={triggerFileInput}
             >
-              <img
-                src="/Icons/photo.gif"
-                alt="Upload"
-                className="user-avatar-icon"
-              />
+              <img src="/Icons/photo.gif" alt="Upload" className="user-avatar-icon" />
             </button>
             <Link to={'/avatarpage'}>
               <button type="button" className="user-profile-picture-action-btn">
-                <img
-                  src="/Icons/avatar.gif"
-                  alt="Change avatar"
-                  className="user-avatar-icon"
-                />
+                <img src="/Icons/avatar.gif" alt="Change avatar" className="user-avatar-icon" />
               </button>
             </Link>
           </div>
@@ -287,7 +295,10 @@ useEffect(() => {
             <DatePicker
               id="dob"
               selected={profile.dob}
-              onChange={(date) => setProfile(prev => ({ ...prev, dob: date }))}
+              onChange={(date) => {
+                setProfile(prev => ({ ...prev, dob: date }));
+                setIsEditing(true);
+              }}
               className="user-form-input"
               placeholderText="Select your birthdate"
               dateFormat="dd-MM-yyyy"
@@ -302,11 +313,7 @@ useEffect(() => {
 
           <div className="user-form-buttons">
             {!isSaved || isEditing ? (
-              <button
-                type="submit"
-                className="user-save-btn"
-                disabled={isSaving}
-              >
+              <button type="submit" className="user-save-btn" disabled={isSaving}>
                 {isSaving ? "Saving..." : (isExistingProfile ? "Update" : "Save")}
               </button>
             ) : (

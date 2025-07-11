@@ -14,7 +14,13 @@ const CateringBookingSchema = new mongoose.Schema({
     },
     address: {
         type: String,
+        ref: 'Address',
         required: [true, 'Address is required'],
+        trim: true
+    },
+      eventTime: {  
+        type: String,
+        required: [true, 'Event time is required'],
         trim: true
     },
     headCount: {
@@ -43,7 +49,7 @@ const CateringBookingSchema = new mongoose.Schema({
     },
     chef: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'ChefStatus',
+        ref: 'ChefProfile',
         required: false,
     },
     chefName: {
@@ -64,7 +70,6 @@ const CateringBookingSchema = new mongoose.Schema({
 
 const CateringBooking = mongoose.model('CateringBooking', CateringBookingSchema);
 
-
 const ChefStatusSchema = new mongoose.Schema({
     chefName: {
         type: String,
@@ -75,6 +80,11 @@ const ChefStatusSchema = new mongoose.Schema({
         type: Boolean,
         default: true
     },
+    availabilityStatus: {  
+        type: String,
+        enum: ['available', 'unavailable'],
+        default: 'available'
+    },
     statusMessage: {
         type: String,
         trim: true
@@ -84,16 +94,41 @@ const ChefStatusSchema = new mongoose.Schema({
         required: false,
         trim: true
     },
-    ratings: [
-        {
-            reviewer: String,
-            comment: String,
-            rating: { type: Number, min: 1, max: 5 },
-            date: { type: Date, default: Date.now }
+    ratings: [{
+        reviewer: { 
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+            required: true
+        },
+        comment: {
+            type: String,
+            default: ""
+        },
+        rating: {
+            type: Number,
+            min: 1,
+            max: 5,
+            required: true
+        },
+        date: {
+            type: Date,
+            default: Date.now
+        },
+        booking: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'CateringBooking'
         }
-    ]
+    }],
+    rating: {
+        type: Number,
+        default: 0
+    },
+    location: {
+        type: String,
+        required: true,
+        trim: true 
+    }
 }, { timestamps: true });
-
 const ChefStatus = mongoose.model('ChefStatus', ChefStatusSchema);
 
 export { CateringBooking, ChefStatus };

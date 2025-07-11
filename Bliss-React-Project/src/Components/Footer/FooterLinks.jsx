@@ -8,7 +8,6 @@ const FooterLinks = () => {
 
     return (
         <div className="footer-links">
-            {/* Left Column - Dropdowns */}
             <div className="footer-dropdown-section">
                 <div className="footer-dropdowns">
                     <div className="footer-dropdown">
@@ -57,7 +56,6 @@ const FooterLinks = () => {
                 </div>
             </div>
 
-            {/* Quick Links Columns */}
             {quickLinks.map((section, index) => (
                 <div className="footer-quick-links" key={`links-${index}`}>
                     <h3 className="footer-links-title">{section.title}</h3>

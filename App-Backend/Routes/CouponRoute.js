@@ -2,13 +2,18 @@ import express from 'express';
 import {
   getCoupons,
   applyCoupon,
-  removeCoupon
+  removeCoupon,
+  getAllCoupons
 } from '../Controllers/CouponController.js'; 
 
 import checkLogin from '../Middlewares/CheckLogin.js';
 import checkRole from '../Middlewares/CheckRole.js';
 
 const couponRouter = express.Router();
+
+
+// Get All coupons
+couponRouter.get('/allCoupons', getAllCoupons);
 
 // Get all applied coupons for a user 
 couponRouter.get('/getCoupons', checkLogin, getCoupons);

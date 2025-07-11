@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 // eslint-disable-next-line no-unused-vars
 import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -9,61 +10,114 @@ import { toast } from 'react-toastify';
 const HiddenRestaurants = () => {
     const [hiddenRestaurants, setHiddenRestaurants] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [authError, setAuthError] = useState(false);
     const navigate = useNavigate();
     const { user, unhideRestaurant } = useContext(UserContext);
 
     const fetchHiddenRestaurants = async () => {
         setLoading(true);
+        setAuthError(false);
         try {
+            const token = localStorage.getItem('token');
+            if (!token || !user?.token) {
+                setHiddenRestaurants([]);
+                setLoading(false);
+                setAuthError(true);
+                return;
+            }
+
             const res = await axios.get("http://localhost:8000/restauranthidden/gethidden", {
                 headers: {
-                    Authorization: `Bearer ${user?.token}`,
+                    Authorization: `Bearer ${token}`,
                 },
+                withCredentials: true
             });
-            setHiddenRestaurants(res.data.hiddenRestaurants || []);
+            
+            if (res.data?.hiddenRestaurants) {
+                setHiddenRestaurants(res.data.hiddenRestaurants);
+            } else {
+                setHiddenRestaurants([]);
+            }
         } catch (err) {
             console.error("Error fetching hidden restaurants:", err);
-            toast.error('Failed to load hidden restaurants', {
-                position: 'top-center',
-                autoClose: 3000
-            });
+            setHiddenRestaurants([]);
+            if (err.response?.status === 403 || err.response?.status === 401) {
+                setAuthError(true);
+            } else {
+                toast.error('Failed to load hidden restaurants', {
+                    position: 'top-center',
+                    autoClose: 3000
+                });
+            }
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        if (user?.token) {
-            fetchHiddenRestaurants();
-        } else {
-            setHiddenRestaurants([]);
-            setLoading(false);
-        }
+        fetchHiddenRestaurants();
     }, [user?.token]);
 
     const handleUnhide = async (restaurantId) => {
         const token = localStorage.getItem('token');
+        if (!token) {
+            toast.error('Please log in to manage hidden restaurants', {
+                position: 'top-center',
+                autoClose: 3000
+            });
+            return;
+        }
+
         try {
             await axios.delete("http://localhost:8000/restauranthidden/unhide", {
                 data: { restaurantId },
-                headers: { Authorization: `Bearer ${token}` }
+                headers: { 
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                withCredentials: true
             });
+            
             if (typeof unhideRestaurant === "function") {
                 unhideRestaurant(restaurantId);
             }
+            
+            setHiddenRestaurants(prev => prev.filter(r => r._id !== restaurantId));
             toast.success('Restaurant is now visible', {
                 position: 'top-center',
                 autoClose: 2000
             });
-            fetchHiddenRestaurants();
         } catch (err) {
             console.error("Error unhiding restaurant:", err);
-            toast.error('Failed to unhide restaurant', {
-                position: 'top-center',
-                autoClose: 3000
-            });
+            if (err.response?.status === 403 || err.response?.status === 401) {
+                setAuthError(true);
+            } else {
+                toast.error('Failed to unhide restaurant', {
+                    position: 'top-center',
+                    autoClose: 3000
+                });
+            }
         }
     };
+
+    if (authError || !user?.token) {
+        return (
+            <div className="hidden-restaurants-container">
+                <div className="hidden-restaurants-header">
+                    <button className="hidden-back-button" onClick={() => navigate(-1)}>
+                        <FiArrowLeft className="back-icon" />
+                    </button>
+                    <div className="header-content">
+                        <h1>Hidden Restaurants</h1>
+                    </div>
+                </div>
+                <div className="empty-state">
+                    <div className="empty-icon">🔒</div>
+                    <h3>Please log in to view hidden restaurants</h3>
+                </div>
+            </div>
+        );
+    }
 
     if (loading) {
         return (

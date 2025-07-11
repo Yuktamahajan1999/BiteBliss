@@ -1,19 +1,23 @@
 /* eslint-disable no-unused-vars */
 import React from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { recipes } from '../data';
 
 const RecipeDetail = () => {
   const { recipeName } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const allRecipes = recipes.flatMap(category => 
-    category.foods.map(food => ({ ...food, mood: category.mood }))
-  );
+  let recipe = location.state?.food;
 
-  const recipe = allRecipes.find(
-    food => food.name.toLowerCase().replace(/ /g, '-') === recipeName
-  );
+  if (!recipe) {
+    const allRecipes = recipes.flatMap(category =>
+      category.foods.map(food => ({ ...food, mood: category.mood }))
+    );
+    recipe = allRecipes.find(
+      food => food.name.toLowerCase().replace(/ /g, '-') === recipeName
+    );
+  }
 
   if (!recipe) {
     return (
@@ -38,20 +42,18 @@ const RecipeDetail = () => {
         <p><strong>Mood:</strong> {recipe.mood}</p>
       </div>
       <p className="rd-description">{recipe.description}</p>
-
       <div className="rd-section">
         <h2>Ingredients</h2>
         <ul>
-          {recipe.ingredients.map((item, i) => (
+          {recipe.ingredients && recipe.ingredients.map((item, i) => (
             <li key={i}>{item}</li>
           ))}
         </ul>
       </div>
-
       <div className="rd-section">
         <h2>Instructions</h2>
         <ol>
-          {recipe.instructions.map((step, i) => (
+          {recipe.instructions && recipe.instructions.map((step, i) => (
             <li key={i}>{step}</li>
           ))}
         </ol>

@@ -10,12 +10,18 @@ import {
 
 const Profilerouter = express.Router();
 
+// Create Profile
 Profilerouter.post('/', checkLogin, uploadMedia.single('profileImage'), createUserProfile);
 
+// Get user Profile
 Profilerouter.get('/getUserProfile', checkLogin, getUserProfile);
 
+// Update Profile
 Profilerouter.put('/updateProfile', checkLogin, uploadMedia.single('profileImage'), updateUserProfile);
 
+// Delete Profile
 Profilerouter.delete('/deleteProfile', checkLogin, deleteUserProfile);
+
+
 
 export default Profilerouter;

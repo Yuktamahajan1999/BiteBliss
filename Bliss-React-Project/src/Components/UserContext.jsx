@@ -14,11 +14,25 @@ function getInitialUser() {
     return null;
   }
 }
+function getInitialCart() {
+  const saved = localStorage.getItem('cart');
+  if (!saved) return { items: [], restaurant: null };
+  try {
+    const parsed = JSON.parse(saved);
+    return {
+      items: Array.isArray(parsed.items) ? parsed.items : [],
+      restaurant: parsed.restaurant || null
+    };
+  } catch {
+    return { items: [], restaurant: null };
+  }
+}
 
 export const UserProvider = ({ children }) => {
   const [user, setUser] = useState(() => getInitialUser());
   const [bookmarkedRestaurants, setBookmarkedRestaurants] = useState([]);
   const [hiddenRestaurants, setHiddenRestaurants] = useState([]);
+  const [cart, setCart] = useState(() => getInitialCart());
   const [theme, setTheme] = useState(() => {
     const savedTheme = localStorage.getItem('theme');
     return savedTheme || 'light';
@@ -28,12 +42,16 @@ export const UserProvider = ({ children }) => {
     document.body.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
   }, [theme]);
+  useEffect(() => {
+    localStorage.setItem('cart', JSON.stringify(cart));
+  }, [cart]);
+
 
   const toggleTheme = () => {
     setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
   };
 
- const login = (userData) => {
+  const login = (userData) => {
     setUser(userData);
     localStorage.setItem('user', JSON.stringify(userData));
     if (userData?.token) {
@@ -41,7 +59,7 @@ export const UserProvider = ({ children }) => {
     }
   };
 
- const logout = () => {
+  const logout = () => {
     setUser(null);
     localStorage.removeItem('user');
     localStorage.removeItem('token');
@@ -64,7 +82,59 @@ export const UserProvider = ({ children }) => {
   const unhideRestaurant = (id) => {
     setHiddenRestaurants((prev) => prev.filter((restId) => restId !== id));
   };
-  
+
+const addToCart = (item, restaurantInfo) => {
+  setCart(prev => {
+    const existingItemIndex = prev.items.findIndex(i => i.id === item.id);
+    let newItems = [...prev.items];
+
+    if (existingItemIndex >= 0) {
+      newItems[existingItemIndex] = {
+        ...newItems[existingItemIndex],
+        quantity: newItems[existingItemIndex].quantity + 1
+      };
+    } else {
+      newItems = [...newItems, { ...item, quantity: 1 }];
+    }
+
+    const newRestaurant = prev.restaurant || restaurantInfo || null;
+
+    return {
+      items: newItems,
+      restaurant: newRestaurant
+    };
+  });
+};
+
+const removeFromCart = (id, removeCompletely = false) => {
+  setCart(prev => {
+    const existingItemIndex = prev.items.findIndex(i => i.id === id);
+
+    if (existingItemIndex < 0) return prev;
+
+    const newItems = [...prev.items];
+    const existingItem = newItems[existingItemIndex];
+
+    if (removeCompletely || existingItem.quantity <= 1) {
+      newItems.splice(existingItemIndex, 1);
+    } else {
+      newItems[existingItemIndex] = {
+        ...existingItem,
+        quantity: existingItem.quantity - 1
+      };
+    }
+
+    return {
+      ...prev,
+      items: newItems
+    };
+  });
+};
+
+const clearCart = () => {
+  setCart({ items: [], restaurant: null });
+};
+
   const contextValue = useMemo(() => ({
     user,
     setUser,
@@ -78,7 +148,11 @@ export const UserProvider = ({ children }) => {
     unhideRestaurant,
     theme,
     toggleTheme,
-  }), [user, bookmarkedRestaurants, hiddenRestaurants, theme]);
+    cart,
+    addToCart,
+    removeFromCart,
+    clearCart,
+  }), [user, bookmarkedRestaurants, hiddenRestaurants, theme, cart]);
 
   return (
     <UserContext.Provider value={contextValue}>

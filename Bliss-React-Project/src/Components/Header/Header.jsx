@@ -1,4 +1,4 @@
-/* eslint-disable no-unused-vars */
+// eslint-disable-next-line no-unused-vars
 import React from "react";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import SearchBar from "./Search";
@@ -8,9 +8,10 @@ import { useUser } from "../UserContext";
 import { useNavigate } from "react-router-dom";
 
 const Header = () => {
-
   const { user, logout } = useUser();
   const navigate = useNavigate();
+  const isAdmin = user?.role === "admin";
+
   const handleLogout = () => {
     logout();
     navigate("/login");
@@ -25,27 +26,31 @@ const Header = () => {
     },
   ];
 
-
   const authButtons = user
     ? [
-      {
-        text: "Logout",
-        onClick: handleLogout,
-        className: "logout-btn"
-      }
-    ]
+        {
+          text: "Logout",
+          onClick: handleLogout,
+          className: "logout-btn",
+        },
+      ]
     : [
-      { text: "LogIn", link: "/login", className: "login-btn" },
-      { text: "SignUp", link: "/signup", className: "signup-btn" }
-    ];
+        { text: "LogIn", link: "/login", className: "login-btn" },
+        { text: "SignUp", link: "/signup", className: "signup-btn" },
+      ];
+
   const menuLinks = [
     {
-      icon: <img src="/Icons/delivery-bike.png" alt="Delivery" className="icon" />,
+      icon: (
+        <img src="/Icons/delivery-bike.png" alt="Delivery" className="icon" />
+      ),
       text: "Delivery",
       to: "/delivery",
     },
     {
-      icon: <img src="/Icons/dining-room.png" alt="Dining" className="icon" />,
+      icon: (
+        <img src="/Icons/dining-room.png" alt="Dining" className="icon" />
+      ),
       text: "Dining",
       to: "/dining",
     },
@@ -55,7 +60,7 @@ const Header = () => {
     <header className="header-box">
       <nav className="header-container">
         <div className="navbar-header">
-          <Navbar links={profileLinks} buttons={authButtons} />
+          <Navbar links={profileLinks} buttons={authButtons} isAdmin={isAdmin} />
         </div>
 
         <SearchBar

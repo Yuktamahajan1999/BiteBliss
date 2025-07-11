@@ -45,7 +45,7 @@ const RestaurantSchema = new mongoose.Schema({
       },
       close: {
         type: String,
-        default: "11:00 PM"
+        default: "10:00 PM"
       }
     },
     tuesday: {
@@ -55,7 +55,7 @@ const RestaurantSchema = new mongoose.Schema({
       },
       close: {
         type: String,
-        default: "11:00 PM"
+        default: "10:00 PM"
       }
     },
     wednesday: {
@@ -65,7 +65,7 @@ const RestaurantSchema = new mongoose.Schema({
       },
       close: {
         type: String,
-        default: "11:00 PM"
+        default: "10:00 PM"
       }
     },
     thursday: {
@@ -75,7 +75,7 @@ const RestaurantSchema = new mongoose.Schema({
       },
       close: {
         type: String,
-        default: "11:00 PM"
+        default: "10:00 PM"
       }
     },
     friday: {
@@ -85,7 +85,7 @@ const RestaurantSchema = new mongoose.Schema({
       },
       close: {
         type: String,
-        default: "11:00 PM"
+        default: "10:00 PM"
       }
     },
     saturday: {
@@ -95,7 +95,7 @@ const RestaurantSchema = new mongoose.Schema({
       },
       close: {
         type: String,
-        default: "11:59 PM"
+        default: "10:00 PM"
       }
     },
     sunday: {
@@ -105,7 +105,7 @@ const RestaurantSchema = new mongoose.Schema({
       },
       close: {
         type: String,
-        default: "11:00 PM"
+        default: "10:00 PM"
       }
     }
   },
@@ -123,6 +123,12 @@ const RestaurantSchema = new mongoose.Schema({
     type: String,
     default: "No offer available"
   },
+  deliveryPartners: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "DeliveryPartner",
+    }
+  ],
   fssaiNumber: {
     type: String,
     required: true
@@ -140,6 +146,18 @@ const RestaurantSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  deliveryUnavailableReason: {
+    type: String,
+    default: ""
+  },
+  acceptingOrders: {
+    type: Boolean,
+    default: true
+  },
+  acceptingBookings: {
+    type: Boolean,
+    default: true
+  },
   diningAvailability: {
     type: Boolean,
     default: true
@@ -152,7 +170,6 @@ const RestaurantSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     required: true,
-    unique: true
   },
   menu: [
     {
@@ -179,6 +196,39 @@ const RestaurantSchema = new mongoose.Schema({
       rating: Number,
       text: String,
       date: String
+    }
+  ],
+  isOpen: {
+    type: Boolean,
+    default: true
+  },
+  closureReason: {
+    type: String,
+    default: null
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'accepted', 'rejected'],
+    default: 'pending',
+  },
+  reviews: [
+    {
+      user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+      },
+      userName: String,
+      rating: {
+        type: Number,
+        min: 1,
+        max: 5,
+        required: true
+      },
+      text: String,
+      date: {
+        type: Date,
+        default: Date.now
+      }
     }
   ]
 }, { timestamps: true });

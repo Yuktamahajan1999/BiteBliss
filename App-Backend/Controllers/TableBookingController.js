@@ -52,20 +52,17 @@ export const createTableBooking = async (req, res) => {
       numberOfGuests,
       specialRequests,
       restaurantId,
-      userId : req.user.id,
+      userId: req.user.id,
       experiences,
     });
 
     await newBooking.save();
 
-    res.status(201).json({ message: "Table booking created successfully", booking: newBooking });
 
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
-
-
 
 // Get all bookings
 export const getAllTableBookings = async (req, res) => {
@@ -87,7 +84,7 @@ export const updateTableBooking = async (req, res) => {
     const updateQuery = {};
     if (status) updateQuery.status = status;
     if (experiences) {
-      updateQuery.$push = { experiences }; 
+      updateQuery.$push = { experiences };
     }
 
     const updatedBooking = await TableBooking.findByIdAndUpdate(id, updateQuery, {
@@ -99,7 +96,7 @@ export const updateTableBooking = async (req, res) => {
       return res.status(404).json({ error: "Booking not found" });
     }
 
-    res.status(200).json(updatedBooking);
+    res.status(200).json({ booking: updatedBooking });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -123,7 +120,6 @@ export const deleteTableBooking = async (req, res) => {
 };
 
 // get bookings by user
-
 export const getBookingsByUser = async (req, res) => {
   try {
     const userId = req.query.id || req.user?.id;
@@ -132,17 +128,17 @@ export const getBookingsByUser = async (req, res) => {
       return res.status(400).json({ error: "User ID is required" });
     }
 
-    const bookings = await TableBooking.find({ userId });
-
-    if (!bookings.length) {
-      return res.status(404).json({ error: "No bookings found for this user" });
-    }
+    const bookings = await TableBooking
+      .find({ userId })
+      .populate("restaurantId");
 
     res.status(200).json({ success: true, bookings });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
+
+
 
 // Add experience to a booking
 export const addExperience = async (req, res) => {
@@ -191,13 +187,38 @@ export const getBookingsByRestaurant = async (req, res) => {
       return res.status(400).json({ error: "Restaurant ID is required" });
     }
 
-    const bookings = await TableBooking.find({ restaurantId });
+    const bookings = await TableBooking
+      .find({ restaurantId })
+      .populate("userId", "fullName email")
+      .sort({ createdAt: -1 });
+
     res.status(200).json(bookings);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
+// Get Experience booking
+export const getExperienceByBooking = async (req, res) => {
+  try {
+    const bookingId = req.query.id;
 
+    if (!bookingId) {
+      return res.status(400).json({ message: 'Booking ID is required' });
+    }
 
+    const booking = await TableBooking.findById(bookingId);
+
+    if (!booking) {
+      return res.status(404).json({ experiences: [] });
+    }
+
+    return res.status(200).json({ 
+      experiences: booking.experiences || []  
+    });
+  } catch (err) {
+    console.error('Error fetching experience:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
 

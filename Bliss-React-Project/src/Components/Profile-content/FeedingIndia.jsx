@@ -11,7 +11,7 @@ const FeedingIndia = () => {
     const [testimonials, setTestimonials] = useState([]);
     const [donorName, setDonorName] = useState("");
     const [donorEmail, setDonorEmail] = useState("");
-    const [donorMessage, showDonorMessage] = useState("");
+    const [donorMessage, setDonorMessage] = useState("");
     const amountToSend = Number(selectedAmount);
     const nameToSend = donorName;
     const emailToSend = donorEmail;
@@ -19,7 +19,7 @@ const FeedingIndia = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        axios.get("http://localhost:8000/testimonial/getAlltestimonial")
+        axios.get("http://localhost:8000/testimonial/getAlltestimonial?page=feeding-india")
             .then(res => {
                 if (res.data.success) {
                     setTestimonials(res.data.data);
@@ -31,15 +31,20 @@ const FeedingIndia = () => {
     }, []);
 
 
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
     const handleDonationSubmit = async () => {
         if (!selectedAmount) return toast.error("Please select an amount!");
         if (!donorName || !donorEmail) return toast.error("Please fill all fields!");
 
         try {
-            const res = await axios.post("http://localhost:8000/donation", {
+            setIsSubmitting(true);
+            const paymentRes = await axios.post("http://localhost:8000/payment", {
+                method: "google-pay",
+                type: 'donation',
+                amount: amountToSend,
                 name: nameToSend,
                 email: emailToSend,
-                amount: amountToSend,
                 message: donorMessage
             }, {
                 headers: {
@@ -47,26 +52,27 @@ const FeedingIndia = () => {
                 }
             });
 
-            if (res.data.success) {
-                toast.success("Donation recorded! Redirecting to payment...");
-                setSelectedAmount("");
-                setDonorName("");
-                setDonorEmail("");
-                setShowForm(false);
-                showDonorMessage("");
-
-                navigate('/PaymentPage', {
-                    state: { amount: amountToSend, name: nameToSend, email: emailToSend, returnUrl: '/' }
+            if (paymentRes.data.success && paymentRes.data.paymentId) {
+                navigate('/paymentpage', {
+                    state: {
+                        amount: amountToSend,
+                        name: nameToSend,
+                        email: emailToSend,
+                        paymentId: paymentRes.data.paymentId,
+                        type: 'donation', 
+                        isDonation: true
+                    }
                 });
             } else {
-                toast.error("Failed to record donation.");
+                throw new Error("Invalid payment response");
             }
         } catch (err) {
             console.error("Donation error", err);
-            toast.error("Error creating donation.");
+            toast.error(err.response?.data?.message || "Payment processing failed");
+        } finally {
+            setIsSubmitting(false);
         }
     };
-
     const handleVolunteerSubmit = (e) => {
         e.preventDefault();
         const form = e.target;
@@ -157,12 +163,14 @@ const FeedingIndia = () => {
                     Whether you can donate time, money, or resources, every contribution helps feed someone in need.
                 </p>
                 <div className="cta-buttons">
-                    <button className="cta-btn donate-btn" onClick={() => { setShowForm(true); setVolunteerForm(false); }}>
-                        <span className="btn-icon">💳</span> <span>Donate Now</span>
-                    </button>
-                    <button className="cta-btn volunteer-btn" onClick={() => { setVolunteerForm(true); setShowForm(false); }}>
-                        <span className="btn-icon">🙌</span> <span>Volunteer</span>
-                    </button>
+                    <div className="cta-buttons">
+                        <button className="cta-btn donate-btn" onClick={() => { setShowForm(true); setVolunteerForm(false); }}>
+                            <span className="btn-icon">💰</span> <span>Donate Now</span>
+                        </button>
+                        <button className="cta-btn volunteer-btn" onClick={() => { setVolunteerForm(true); setShowForm(false); }}>
+                            <span className="btn-icon">🙌</span> <span>Volunteer</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -174,7 +182,7 @@ const FeedingIndia = () => {
                     </div>
                     <form className="donate-form" onSubmit={(e) => e.preventDefault()}>
                         <div className="preset-buttons">
-                            {[10, 20, 30, 100, 500, 2000].map((amt) => (
+                            {[10, 20, 30, 100, 500 ].map((amt) => (
                                 <button
                                     key={amt}
                                     type="button"
@@ -191,7 +199,7 @@ const FeedingIndia = () => {
                             onChange={(e) => setSelectedAmount(e.target.value)}
                             placeholder="Or enter your own amount"
                             min="10"
-                            max="2000"
+                            max="500"
                             required
                             className="donate-input"
                         />
@@ -215,7 +223,7 @@ const FeedingIndia = () => {
                             placeholder="Message (optional)"
                             className="donate-input"
                             value={donorMessage}
-                            onChange={(e) => showDonorMessage(e.target.value)}
+                            onChange={(e) => setDonorMessage(e.target.value)}
                             rows={3}
                         />
                         <button

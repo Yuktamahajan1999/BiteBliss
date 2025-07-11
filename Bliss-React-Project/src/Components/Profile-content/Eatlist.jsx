@@ -1,12 +1,14 @@
-// eslint-disable-next-line no-unused-vars
+/* eslint-disable no-unused-vars */
 import React, { useContext, useEffect, useState } from 'react';
 import axios from 'axios';
 import { UserContext } from '../UserContext';
 import { FiHeart, FiMapPin, FiStar, FiTrash2, FiExternalLink } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const Eatlist = () => {
-  const { bookmarkedRestaurants, removeFromEatlist } = useContext(UserContext);
+  const { bookmarkedRestaurants, removeFromEatlist, user } = useContext(UserContext);
   const [eatlistRestaurants, setEatlistRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -15,14 +17,37 @@ const Eatlist = () => {
     try {
       setLoading(true);
       setError(null);
-      const token = localStorage.getItem('token');
-      const res = await axios.get('http://localhost:8000/wishlist', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
 
-      setEatlistRestaurants(res.data?.wishlist || []);
+      if (user) {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          toast.error('Please log in to view your Eatlist');
+          setEatlistRestaurants(bookmarkedRestaurants || []);
+          return;
+        }
+
+        const res = await axios.get('http://localhost:8000/wishlist', {
+          headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true 
+        });
+        
+        if (res.data && res.data.wishlist) {
+          setEatlistRestaurants(res.data.wishlist);
+        } else {
+          setEatlistRestaurants([]);
+        }
+      } else {
+        setEatlistRestaurants(bookmarkedRestaurants || []);
+      }
     } catch (err) {
       console.error('Failed to load eatlist', err);
+      
+      if (err.response?.status === 403 || err.response?.status === 401) {
+        toast.error('Please log in to view your Eatlist');
+      } else {
+        toast.error('Failed to load your Eatlist. Showing local bookmarks.');
+      }
+
       setEatlistRestaurants(bookmarkedRestaurants || []);
     } finally {
       setLoading(false);
@@ -31,22 +56,38 @@ const Eatlist = () => {
 
   useEffect(() => {
     loadEatlistRestaurants();
-  }, []);
+  }, [user]);
 
   const handleRemoveFromEatlist = async (restaurantId) => {
     try {
-      const token = localStorage.getItem('token');
-      await axios.delete('http://localhost:8000/wishlist/removefromwishlist', {
-        data: { restaurantId },
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      if (user) {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          toast.error('Please log in to modify your Eatlist');
+          return;
+        }
+
+        await axios.delete('http://localhost:8000/wishlist/removefromwishlist', {
+          data: { restaurantId },
+          headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true
+        });
+      }
+
       setEatlistRestaurants(prev => prev.filter(r => r._id !== restaurantId));
       if (removeFromEatlist) removeFromEatlist(restaurantId);
+
+      toast.success('Removed from Eatlist!');
     } catch (err) {
       console.error('Failed to remove from eatlist', err);
-      setError('Failed to remove restaurant. Please try again.');
+      if (err.response?.status === 403 || err.response?.status === 401) {
+        toast.error('Please log in to modify your Eatlist');
+      } else {
+        toast.error('Failed to remove restaurant. Please try again.');
+      }
     }
   };
+
   const displayedRestaurants = eatlistRestaurants.length > 0
     ? eatlistRestaurants
     : bookmarkedRestaurants || [];
@@ -55,12 +96,9 @@ const Eatlist = () => {
     return <div className="eatlist-container">Loading your eatlist...</div>;
   }
 
-  if (error) {
-    return <div className="eatlist-container error">{error}</div>;
-  }
-
   return (
     <div className="eatlist-container">
+      <ToastContainer position="top-right" autoClose={3000} />
       <h2 className="eatlist-title">Your Eatlist 🍽️</h2>
       {displayedRestaurants.length === 0 ? (
         <div className="eatlist-empty">

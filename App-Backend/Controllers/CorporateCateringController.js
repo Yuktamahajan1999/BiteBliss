@@ -1,6 +1,7 @@
 import ChefBooking from '../Models/ChefBooking.js';
 import ChefProfile from '../Models/ChefForm.js';
 import { CateringBooking } from '../Models/CorporateCatering.js'
+import { ChefStatus } from '../Models/CorporateCatering.js';
 
 export const bookCatering = async (req, res) => {
     try {
@@ -67,24 +68,94 @@ export const bookCatering = async (req, res) => {
 // Get all bookings 
 export const getAllBookings = async (req, res) => {
     try {
-        const bookings = await CateringBooking.find({ user: req.user.id }).sort({ createdAt: -1 });
+        let bookings;
+        if (req.user.role === 'chef') {
+            bookings = await ChefBooking.find({ chef: req.user.id })
+                .populate('user', 'name email phone')
+                .populate('chef', 'chefName specialty');
+        } else {
+            bookings = await CateringBooking.find({ user: req.user.id })
+                .populate({
+                    path: 'chef',
+                    select: 'chefName specialty cuisines',
+                    model: 'ChefProfile'
+                })
+                .select('name email address date eventTime status chefName')
+                .sort({ createdAt: -1 });
+        }
         res.status(200).json({ success: true, bookings });
     } catch (err) {
-        res.status(500).json({ success: false, message: "Failed to fetch bookings", error: err.message });
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch bookings",
+            error: err.message
+        });
     }
 };
-
 // Get available chefs
 export const getAvailableChefs = async (req, res) => {
     try {
-        const chefs = await ChefProfile.find({ isAvailable: true })
-            .select('chefName  isAvailable menu specialty cuisines price vegNonVeg signatureDishes location bio contactNumber');
-        res.status(200).json({ success: true, count: chefs.length, chefs });
+        const { address, cuisine, minPrice, maxPrice } = req.query;
+
+        const query = {
+            isAvailable: true,
+            isApproved: true,
+            status: 'approved'
+        };
+
+        if (address) {
+            const addressParts = address.split(',');
+            const city = addressParts[addressParts.length - 1].trim();
+            query.location = {
+                $regex: new RegExp(city, 'i')
+            };
+        }
+
+        if (cuisine) {
+            query.$or = [
+                { specialty: { $regex: new RegExp(cuisine, 'i') } },
+                { cuisines: { $in: [new RegExp(cuisine, 'i')] } }
+            ];
+        }
+
+        if (minPrice || maxPrice) {
+            query.price = {};
+            if (minPrice) query.price.$gte = Number(minPrice);
+            if (maxPrice) query.price.$lte = Number(maxPrice);
+        }
+
+        const chefs = await ChefProfile.find(query)
+            .select('-__v -createdAt -updatedAt')
+            .populate('ratings.reviewer', 'name')
+            .sort({ price: 1 });
+
+        res.status(200).json({
+            success: true,
+            count: chefs.length,
+            chefs: chefs.map(chef => ({
+                id: chef._id,
+                name: chef.chefName,
+                specialty: chef.specialty,
+                cuisines: chef.cuisines,
+                price: chef.price,
+                location: chef.location,
+                rating: chef.rating || 0,
+                ratings: chef.ratings || [],
+                signatureDishes: chef.signatureDishes,
+                isVeg: chef.vegNonVeg === 'veg',
+                isAvailable: chef.isAvailable,
+                chefName: chef.chefName
+            }))
+        });
     } catch (err) {
-        res.status(500).json({ success: false, message: "Failed to fetch available chefs", error: err.message });
+        console.error('Error fetching chefs:', err);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch available chefs",
+            error: err.message
+        });
     }
 };
-
 
 // Update chef availability status
 export const updateChefStatus = async (req, res) => {
@@ -120,39 +191,59 @@ export const updateChefStatus = async (req, res) => {
 // Add rating for a chef
 export const addChefRating = async (req, res) => {
     try {
-        const { reviewer, comment, rating } = req.body;
-        const { id } = req.query;
+        const { id, rating, comment, reviewer } = req.body;
 
-        if (!id || !reviewer || !comment || typeof rating !== 'number') {
-            return res.status(400).json({
-                success: false,
-                message: "id, reviewer, comment, and rating are required",
-            });
+        const booking = await CateringBooking.findById(id);
+        if (!booking) {
+            return res.status(404).json({ success: false, message: "Booking not found" });
         }
 
-        if (rating < 1 || rating > 5) {
-            return res.status(400).json({
-                success: false,
-                message: "Rating must be between 1 and 5",
-            });
+        let chef = booking.chef ? await ChefProfile.findById(booking.chef) : null;
+        if (!chef && booking.chefName) {
+            chef = await ChefProfile.findOne({ chefName: booking.chefName }) ||
+                await ChefStatus.findOne({ chefName: booking.chefName });
         }
 
-        const chef = await ChefStatus.findById(id);
         if (!chef) {
-            return res.status(404).json({
-                success: false,
-                message: "Chef not found",
-            });
+            return res.status(400).json({ success: false, message: "No chef found to rate" });
         }
 
-        chef.ratings.push({ reviewer, comment, rating, date: new Date() });
+        chef.ratings = chef.ratings || [];
+        chef.ratings.push({
+            reviewer: reviewer || "Anonymous",
+            comment: comment || "No comment provided",
+            rating,
+            date: new Date()
+        });
+
+        const totalRatings = chef.ratings.length;
+        chef.rating = chef.ratings.reduce((sum, r) => sum + r.rating, 0) / totalRatings;
         await chef.save();
+
+        const update = {
+            rated: true,
+            rating,
+            comment,
+            status: booking.status || 'completed'
+        };
+
+        const updatedBooking = await CateringBooking.findByIdAndUpdate(
+            id,
+            update,
+            { new: true }
+        );
 
         res.status(200).json({
             success: true,
-            message: "Rating added",
-            chef,
+            message: "Rating added successfully",
+            booking: {
+                id: updatedBooking._id,
+                status: updatedBooking.status,
+                rated: updatedBooking.rated,
+                rating: updatedBooking.rating
+            }
         });
+
     } catch (err) {
         res.status(500).json({
             success: false,
@@ -161,7 +252,6 @@ export const addChefRating = async (req, res) => {
         });
     }
 };
-
 
 // Update user’s catering booking details
 export const updateUserBooking = async (req, res) => {
@@ -206,64 +296,64 @@ export const updateUserBooking = async (req, res) => {
 
 // Accept Booking
 export const acceptBooking = async (req, res) => {
-  const { id } = req.query;
-  const booking = await ChefBooking.findByIdAndUpdate(
-    id,
-    { status: 'accepted' },
-    { new: true, runValidators: true }
-  );
-
-  if (booking && booking.cateringBookingId) {
-    await CateringBooking.findByIdAndUpdate(
-      booking.cateringBookingId,
-      { status: 'accepted' }
+    const { id } = req.query;
+    const booking = await ChefBooking.findByIdAndUpdate(
+        id,
+        { status: 'accepted' },
+        { new: true, runValidators: true }
     );
-  }
 
-  if (!booking) return res.status(404).json({ error: 'Booking not found' });
-  res.json(booking);
+    if (booking && booking.cateringBookingId) {
+        await CateringBooking.findByIdAndUpdate(
+            booking.cateringBookingId,
+            { status: 'accepted' }
+        );
+    }
+
+    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+    res.json(booking);
 };
 
 // Cancel Booking
 export const cancelBooking = async (req, res) => {
-  const { id } = req.query;
+    const { id } = req.query;
 
-  const booking = await ChefBooking.findByIdAndUpdate(
-    id,
-    { status: 'cancelled' },
-    { new: true, runValidators: true }
-  );
-
-  if (booking && booking.cateringBookingId) {
-    await CateringBooking.findByIdAndUpdate(
-      booking.cateringBookingId,
-      { status: 'cancelled' }
+    const booking = await ChefBooking.findByIdAndUpdate(
+        id,
+        { status: 'cancelled' },
+        { new: true, runValidators: true }
     );
-  }
 
-  if (!booking) return res.status(404).json({ error: 'Booking not found' });
-  res.json(booking);
+    if (booking && booking.cateringBookingId) {
+        await CateringBooking.findByIdAndUpdate(
+            booking.cateringBookingId,
+            { status: 'cancelled' }
+        );
+    }
+
+    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+    res.json(booking);
 };
 
 // Complete Booking
 export const completeBooking = async (req, res) => {
-  const { id } = req.query;
+    const { id } = req.query;
 
-  const booking = await ChefBooking.findByIdAndUpdate(
-    id,
-    { status: 'completed' },
-    { new: true, runValidators: true }
-  );
-
-  if (booking && booking.cateringBookingId) {
-    await CateringBooking.findByIdAndUpdate(
-      booking.cateringBookingId,
-      { status: 'completed' }
+    const booking = await ChefBooking.findByIdAndUpdate(
+        id,
+        { status: 'completed' },
+        { new: true, runValidators: true }
     );
-  }
 
-  if (!booking) return res.status(404).json({ error: 'Booking not found' });
-  res.json(booking);
+    if (booking && booking.cateringBookingId) {
+        await CateringBooking.findByIdAndUpdate(
+            booking.cateringBookingId,
+            { status: 'completed' }
+        );
+    }
+
+    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+    res.json(booking);
 };
 
 // Chef Arrival

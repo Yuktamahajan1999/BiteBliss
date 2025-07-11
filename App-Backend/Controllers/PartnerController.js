@@ -74,14 +74,19 @@ export const updatePartnerApplication = async (req, res) => {
       return res.status(400).json({ message: 'Both "id" and "status" are required parameters.' });
     }
 
-    if (!['pending', 'approved', 'rejected'].includes(status)) {
+    if (!['pending', 'approved', 'rejected', 'accepted', 'reviewed'].includes(status)) {
       return res.status(400).json({ message: 'Invalid status value' });
     }
-
     const updated = await PartnerApplication.findByIdAndUpdate(id, { status }, { new: true });
 
     if (!updated) return res.status(404).json({ message: 'Application not found' });
-
+    if (status === 'accepted') {
+      res.status(200).json({
+        message: 'Application accepted. Please complete your restaurant profile.',
+        application: updated,
+        nextStep: 'Please submit detailed restaurant information to complete onboarding.'
+      });
+    }
     res.json({ message: 'Status updated', application: updated });
   } catch (err) {
     res.status(500).json({ message: 'Failed to update status', error: err.message });
@@ -100,5 +105,55 @@ export const deletepartnerApplication = async (req, res) => {
     res.json({ message: 'Application deleted successfully' });
   } catch (err) {
     res.status(500).json({ message: 'Failed to delete application', error: err.message });
+  }
+};
+
+// Approved Application 
+export const getApprovedApplication = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const application = await PartnerApplication.findOne({
+      'submittedBy.userId': userId
+    });
+
+    if (!application) {
+      return res.status(404).json({ message: 'No application found' });
+    }
+
+    res.json({ status: application.status });
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching application', error: err.message });
+  }
+};
+
+
+// Update the application
+export const updatePartnerAppDetails = async (req, res) => {
+  try {
+    const { id } = req.query;
+    const updateData = req.body;
+
+    if (!id) {
+      return res.status(400).json({ message: 'Application ID is required' });
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ message: 'At least one field to update is required' });
+    }
+
+    const updatedApplication = await PartnerApplication.findByIdAndUpdate(
+      id, 
+      { $set: updateData }, 
+      { new: true } 
+    );
+
+    if (!updatedApplication) {
+      return res.status(404).json({ message: 'Application not found' });
+    }
+
+    res.json({ message: 'Application field(s) updated successfully', application: updatedApplication });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to update application', error: err.message });
   }
 };

@@ -1,8 +1,10 @@
-// eslint-disable-next-line no-unused-vars
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useContext } from "react";
 import axios from "axios";
 import ThumbUpIcon from "@mui/icons-material/ThumbUp";
 import AddCommentIcon from "@mui/icons-material/AddComment";
+import ReplyIcon from "@mui/icons-material/Reply";
+import EditIcon from "@mui/icons-material/Edit";
 import { UserContext } from "../UserContext";
 
 const UserVideos = () => {
@@ -13,45 +15,36 @@ const UserVideos = () => {
   const [videoDesc, setVideoDesc] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [commentInputs, setCommentInputs] = useState({});
+  const [replyInputs, setReplyInputs] = useState({});
+  const [replyingTo, setReplyingTo] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [editingVideoId, setEditingVideoId] = useState(null);
+  const [editedTitle, setEditedTitle] = useState("");
+  const [editedDesc, setEditedDesc] = useState("");
 
   useEffect(() => {
-    console.log("User changed:", user);
-    if (user) {
-      fetchVideos();
-    } else {
-      setVideos([]);
-    }
-  }, [user]);
+    fetchVideos();
+  }, []);
 
   const fetchVideos = async () => {
-    if (!user) return;
-
     try {
-      console.log("Fetching videos for user:", user.id);
       setLoading(true);
       const res = await axios.get("http://localhost:8000/videos/user", {
-        headers: { Authorization: `Bearer ${user.token}` },
+        headers: user ? { Authorization: `Bearer ${user.token}` } : {},
         params: {
           uploadedByType: "User",
-          uploadedBy: user.id,
         },
       });
-
-      // Support various response formats
-      const videosData = Array.isArray(res.data)
-        ? res.data
-        : res.data.videos || [];
-
-      console.log("Fetched videos:", videosData);
-      setVideos(videosData);
+       const filteredVideos = res.data.filter(video => {
+      if (!video.comments) return true;
+      return video.comments.every(comment => comment.userType);
+    });
+    
+      setVideos(res.data);
       setErrorMsg("");
     } catch (err) {
-      console.error("Fetch error:", err);
-      setErrorMsg(
-        err.response?.data?.message || "Failed to load videos from server."
-      );
-      setVideos([]);
+      console.error('Error fetching videos:', err);
+      setErrorMsg('Failed to load videos');
     } finally {
       setLoading(false);
     }
@@ -59,14 +52,12 @@ const UserVideos = () => {
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
-    console.log("Selected file:", file);
-    if (file && file.type.startsWith("video/")) {
-      setVideoFile(file);
-      setErrorMsg("");
-    } else {
-      setErrorMsg("Please upload a valid video file!");
-      setVideoFile(null);
+    if (!file || !file.type.startsWith('video/')) {
+      setErrorMsg('Please select a valid video file.');
+      return;
     }
+    setVideoFile(file);
+    setErrorMsg('');
   };
 
   const uploadVideo = async () => {
@@ -87,9 +78,8 @@ const UserVideos = () => {
     formData.append("uploadedBy", user.id);
 
     try {
-      console.log("Uploading video:", videoTitle, videoFile);
       setLoading(true);
-      const res = await axios.post(
+      const response = await axios.post(
         "http://localhost:8000/videos/user/uploadvideo",
         formData,
         {
@@ -100,126 +90,246 @@ const UserVideos = () => {
         }
       );
 
-      const newVideo = res.data.video || res.data;
-      console.log("Upload successful, new video:", newVideo);
-      setVideos((prev) => [newVideo, ...prev]);
-      setVideoFile(null);
       setVideoTitle("");
       setVideoDesc("");
-      setErrorMsg("");
+      setVideoFile(null);
+      document.getElementById('user-video-upload').value = '';
+      fetchVideos();
     } catch (err) {
-      console.error("Upload error:", err);
-      setErrorMsg(
-        err.response?.data?.message || err.message || "Upload failed. Please try again."
-      );
+      const errorMessage = err.response?.data?.message ||
+        err.response?.data?.error ||
+        'Upload failed';
+      setErrorMsg(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  const deleteVideo = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this video?")) return;
+  const deleteVideo = async (videoId) => {
+    if (!window.confirm('Are you sure you want to delete this video?')) return;
 
     try {
-      console.log("Deleting video with id:", id);
       setLoading(true);
-      await axios.delete("http://localhost:8000/videos/user/deletevideo", {
-        headers: { Authorization: `Bearer ${user.token}` },
-        params: { id },
+      await axios.delete(`http://localhost:8000/videos/user/deletevideo?id=${videoId}`, {
+        headers: { Authorization: `Bearer ${user.token}` }
       });
-      setVideos((prev) => prev.filter((v) => v._id !== id));
-      setErrorMsg("");
-      console.log("Video deleted:", id);
+      fetchVideos();
+      setErrorMsg('');
     } catch (err) {
-      console.error("Delete error:", err);
-      setErrorMsg(err.response?.data?.message || "Failed to delete video");
+      setErrorMsg(err.response?.data?.message || 'Error deleting video');
+      console.error('Error deleting video:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const upvoteVideo = async (id) => {
-    try {
-      console.log("Upvoting video with id:", id);
-      const res = await axios.post(
-        `http://localhost:8000/videos/upvote?id=${id}`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${user.token}` },
-        }
-      );
+  const upvoteVideo = async (videoId) => {
+    console.log('Attempting to upvote video:', videoId);
 
-      setVideos((prev) =>
-        prev.map((video) =>
-          video._id === id ? { ...video, votes: res.data.votes } : video
-        )
-      );
-      setErrorMsg("");
-      console.log("Upvote successful:", res.data.votes);
-    } catch (err) {
-      console.error("Upvote error:", err);
-      setErrorMsg(err.response?.data?.message || "Failed to upvote video");
+    if (!user?.token) {
+      console.log('User not logged in - blocking vote');
+      setErrorMsg("Please login to upvote");
+      return;
     }
-  };
 
-  const handleCommentChange = (videoId, text) => {
-    console.log("Comment input changed for video:", videoId, "Text:", text);
-    setCommentInputs((prev) => ({
-      ...prev,
-      [videoId]: text,
-    }));
-  };
+    const STORAGE_KEY = 'votedVideos';
 
-  const addComment = async (videoId) => {
-    const commentText = commentInputs[videoId]?.trim();
-    if (!commentText) {
-      console.log("Empty comment, nothing to add");
+    let votedVideos = {};
+    try {
+      const storedVotes = localStorage.getItem(STORAGE_KEY);
+      console.log('Retrieved from localStorage:', storedVotes);
+      votedVideos = storedVotes ? JSON.parse(storedVotes) : {};
+      console.log('Parsed votedVideos:', votedVideos);
+    } catch (e) {
+      console.error('Error parsing votedVideos:', e);
+      votedVideos = {};
+    }
+
+    if (votedVideos[videoId]) {
+      console.log('User already voted for this video - blocking duplicate vote');
+      setErrorMsg("You've already voted for this video");
       return;
     }
 
     try {
-      console.log("Adding comment to video:", videoId, "Comment:", commentText);
+      console.log('Sending upvote request to server...');
       setLoading(true);
-      const res = await axios.post(
-        "http://localhost:8000/videos/comment",
+
+      const response = await axios.post(
+        `http://localhost:8000/videos/upvote?videoId=${videoId}`,
+        {},
         {
-          videoId,
-          userId: user.id,
-          text: commentText,
-        },
-        {
-          headers: { Authorization: `Bearer ${user.token}` },
+          headers: {
+            Authorization: `Bearer ${user.token}`,
+            'Content-Type': 'application/json'
+          }
         }
       );
+      console.log('Upvote successful, server response:', response.data);
 
-      setVideos((prev) =>
-        prev.map((video) =>
-          video._id === videoId ? { ...video, comments: res.data.comments } : video
-        )
-      );
+      votedVideos[videoId] = true;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(votedVideos));
+      console.log('Updated localStorage with new vote');
 
-      setCommentInputs((prev) => ({
-        ...prev,
-        [videoId]: "",
-      }));
+      setVideos(prevVideos => {
+        const updated = prevVideos.map(video =>
+          video._id === videoId
+            ? { ...video, votes: response.data.votes || (video.votes || 0) + 1 }
+            : video
+        );
+        console.log('Updated videos state:', updated);
+        return updated;
+      });
+
       setErrorMsg("");
-      console.log("Comment added successfully");
     } catch (err) {
-      console.error("Comment error:", err);
-      setErrorMsg(err.response?.data?.message || "Failed to add comment");
+      console.error('Upvote failed:', err);
+      console.log('Error response:', err.response);
+      setErrorMsg(err.response?.data?.message || 'Upvote failed');
+    } finally {
+      console.log('Vote process completed');
+      setLoading(false);
+    }
+  };
+  const handleCommentChange = (videoId, text) => {
+    setCommentInputs((prev) => ({ ...prev, [videoId]: text }));
+  };
+
+  const handleReplyChange = (commentId, text) => {
+    setReplyInputs((prev) => ({
+      ...prev,
+      [commentId]: text,
+    }));
+  };
+
+  const startReply = (commentId) => {
+    setReplyingTo(commentId);
+    setReplyInputs((prev) => ({
+      ...prev,
+      [commentId]: "",
+    }));
+  };
+
+  const cancelReply = () => {
+    setReplyingTo(null);
+  };
+
+  const addComment = async (videoId) => {
+    const text = commentInputs[videoId]?.trim();
+    if (!text || !user?.token) {
+      setErrorMsg(!user ? "Please login to comment" : "Comment cannot be empty");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await axios.post('http://localhost:8000/videos/comment', {
+        videoId,
+        text,
+        userId: user.id,
+        userName: user.name || "User",
+        userType: user.role || "User"
+      }, {
+        headers: { Authorization: `Bearer ${user.token}` }
+      });
+      setCommentInputs((prev) => ({ ...prev, [videoId]: '' }));
+      fetchVideos();
+    } catch (err) {
+      setErrorMsg(err.response?.data?.message || 'Error adding comment');
+      console.error('Error adding comment:', err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const addReply = async (videoId, commentId) => {
+    const replyText = replyInputs[commentId]?.trim();
+    if (!replyText || !user?.token) {
+      setErrorMsg(!user ? "Please login to reply" : "Reply cannot be empty");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await axios.post('http://localhost:8000/videos/addreply', {
+        videoId,
+        commentId,
+        text: replyText,
+        userId: user.id,
+        userName: user.name || "User",
+        userType: user.role || "User"
+      }, {
+        headers: { Authorization: `Bearer ${user.token}` }
+      });
+
+      setReplyInputs((prev) => ({ ...prev, [commentId]: '' }));
+      setReplyingTo(null);
+      fetchVideos();
+    } catch (err) {
+      setErrorMsg(err.response?.data?.message || 'Error adding reply');
+      console.error('Error adding reply:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const editVideo = (video) => {
+    setEditingVideoId(video._id);
+    setEditedTitle(video.title);
+    setEditedDesc(video.description || '');
+    setVideoFile(null);
+  };
+
+  const saveVideoUpdate = async (videoId) => {
+    if (!editedTitle.trim()) {
+      setErrorMsg('Title cannot be empty');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const formData = new FormData();
+      formData.append('title', editedTitle);
+      formData.append('description', editedDesc);
+      if (videoFile) {
+        formData.append('video', videoFile);
+      }
+
+      await axios.put(`http://localhost:8000/videos/user/updatevideo?id=${videoId}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          Authorization: `Bearer ${user.token}`
+        }
+      });
+
+      setEditingVideoId(null);
+      setVideoFile(null);
+      document.getElementById('user-video-upload').value = '';
+      setErrorMsg('');
+      fetchVideos();
+    } catch (err) {
+      setErrorMsg(err.response?.data?.message || 'Update failed');
+      console.error('Error updating video:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const cancelEdit = () => {
+    setEditingVideoId(null);
+    setVideoFile(null);
+    document.getElementById('user-video-upload').value = '';
+    setErrorMsg('');
   };
 
   return (
     <div className="uservideo-container">
       <h1 className="uservideo-header">📹 User Cooking Videos</h1>
       <p className="uservideo-subtext">
-        {user
-          ? "Share your home-cooked meals and personal recipes!"
-          : "Please login to view and upload videos."}
+        Share your home-cooked meals and personal recipes!
       </p>
+
+      {loading && <div className="loading">Loading...</div>}
 
       {user && (
         <div className="uservideo-upload-section">
@@ -227,141 +337,277 @@ const UserVideos = () => {
             <span className="role-badge">👤 User Mode</span>
           </div>
 
-          <input
-            type="text"
-            placeholder="Enter video title..."
-            value={videoTitle}
-            onChange={(e) => setVideoTitle(e.target.value)}
-            className="uservideo-input"
-          />
+          {editingVideoId ? (
+            <>
+              <input
+                type="text"
+                placeholder="Enter video title..."
+                value={editedTitle}
+                onChange={(e) => setEditedTitle(e.target.value)}
+                className="uservideo-input"
+                required
+              />
 
-          <textarea
-            placeholder="Add a short description..."
-            value={videoDesc}
-            onChange={(e) => setVideoDesc(e.target.value)}
-            className="uservideo-textarea"
-            rows={3}
-          ></textarea>
+              <textarea
+                placeholder="Add a short description..."
+                value={editedDesc}
+                onChange={(e) => setEditedDesc(e.target.value)}
+                className="uservideo-textarea"
+                rows={3}
+              ></textarea>
 
-          <div className="upload-video-section">
-            <input
-              type="file"
-              accept="video/*"
-              id="user-video-upload"
-              className="uservideo-upload-input"
-              onChange={handleFileChange}
-            />
-            <label htmlFor="user-video-upload" className="uservideo-upload-label">
-              <span className="upload-icon">📤</span> Choose Video File
-            </label>
+              <input
+                type="file"
+                accept="video/*"
+                id="user-video-upload"
+                className="uservideo-upload-input"
+                onChange={handleFileChange}
+              />
+              <label htmlFor="user-video-upload" className="uservideo-upload-label">
+                {videoFile ? 'Change Video File' : 'Optional: Replace Video'}
+              </label>
 
-            {videoFile && (
-              <p className="selected-file-name">Selected: {videoFile.name}</p>
-            )}
+              {videoFile && (
+                <p className="selected-file">Selected: {videoFile.name}</p>
+              )}
 
-            <button
-              className="uservideo-submit-btn"
-              onClick={uploadVideo}
-              disabled={loading}
-              aria-label="Upload video"
-            >
-              {loading ? "Uploading..." : "Upload Now"}
-            </button>
+              <div className="edit-buttons">
+                <button
+                  className="uservideo-submit-btn"
+                  onClick={() => saveVideoUpdate(editingVideoId)}
+                  disabled={loading}
+                >
+                  {loading ? 'Saving...' : 'Save Changes'}
+                </button>
+                <button
+                  className="uservideo-cancel-btn"
+                  onClick={cancelEdit}
+                  disabled={loading}
+                >
+                  Cancel
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <input
+                type="text"
+                placeholder="Enter video title..."
+                value={videoTitle}
+                onChange={(e) => setVideoTitle(e.target.value)}
+                className="uservideo-input"
+                required
+              />
 
-            {errorMsg && <p className="uservideo-error">{errorMsg}</p>}
-          </div>
+              <textarea
+                placeholder="Add a short description..."
+                value={videoDesc}
+                onChange={(e) => setVideoDesc(e.target.value)}
+                className="uservideo-textarea"
+                rows={3}
+              ></textarea>
+
+              <input
+                type="file"
+                accept="video/*"
+                id="user-video-upload"
+                className="uservideo-upload-input"
+                onChange={handleFileChange}
+                required
+              />
+              <label htmlFor="user-video-upload" className="uservideo-upload-label">
+                Choose Video File
+              </label>
+
+              {videoFile && (
+                <p className="selected-file">Selected: {videoFile.name}</p>
+              )}
+
+              <button
+                className="uservideo-submit-btn"
+                onClick={uploadVideo}
+                disabled={loading}
+              >
+                {loading ? 'Uploading...' : 'Upload Video'}
+              </button>
+            </>
+          )}
+
+          {errorMsg && <p className="uservideo-error">{errorMsg}</p>}
         </div>
       )}
 
-      {loading && <div className="loading-spinner">Loading...</div>}
-
-      {!loading && videos.length === 0 ? (
-        <p className="uservideo-empty-message">
-          {user
-            ? "No videos uploaded yet. Share your first cooking video!"
-            : "Please login to view videos."}
-        </p>
-      ) : (
-        <div className="uservideo-gallery">
-          {videos.map((video) => (
+      <div className="uservideo-gallery">
+        {videos.length === 0 ? (
+          <p className="no-videos">
+            {user
+              ? 'No videos uploaded yet. Share your first cooking video!'
+              : 'Please login to view user videos.'}
+          </p>
+        ) : (
+          videos.map((video) => (
             <div key={video._id} className="uservideo-video-card">
-              {user && (
+              {user && user.id === video.uploadedBy && (
                 <button
                   className="uservideo-delete-btn"
                   onClick={() => deleteVideo(video._id)}
                   disabled={loading}
-                  aria-label="Delete video"
                 >
                   ❌
                 </button>
               )}
+
               <div className="uservideo-video-wrapper">
                 <video
-                  src={
-                    video.src.startsWith("http")
-                      ? video.src
-                      : `http://localhost:8000/${video.src.replace(/\\/g, "/")}`
-                  }
+                  src={video.src}
                   controls
                   className="uservideo-video"
-                  poster={video.thumbnail || ""}
                 />
               </div>
+
               <div className="uservideo-info">
-                <h3 className="uservideo-title">{video.title || "Untitled Video"}</h3>
-                <p className="uservideo-description">{video.description || ""}</p>
+                {editingVideoId === video._id ? (
+                  <>
+                    <input
+                      type="text"
+                      value={editedTitle}
+                      onChange={(e) => setEditedTitle(e.target.value)}
+                      className="uservideo-input"
+                    />
+                    <textarea
+                      value={editedDesc}
+                      onChange={(e) => setEditedDesc(e.target.value)}
+                      rows={3}
+                      className="uservideo-textarea"
+                    ></textarea>
+                    <div className="uservideo-edit-buttons">
+                      <button
+                        className="uservideo-submit-btn"
+                        onClick={() => saveVideoUpdate(video._id)}
+                        disabled={loading}
+                      >
+                        Save
+                      </button>
+                      <button
+                        className="uservideo-cancel-btn"
+                        onClick={cancelEdit}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="uservideo-title">{video.title}</h3>
+                    <p className="uservideo-description">{video.description}</p>
+                    {user && user.id === video.uploadedBy && (
+                      <button
+                        className="uservideo-edit-btn"
+                        onClick={() => editVideo(video)}
+                        disabled={loading}
+                      >
+                        ✏️ Edit
+                      </button>
+                    )}
+                  </>
+                )}
 
                 <div className="uservideo-meta">
                   <span>{video.votes || 0} votes</span>
-                  <button
-                    className="uservideo-vote-btn"
-                    onClick={() => upvoteVideo(video._id)}
-                    disabled={!user || loading}
-                    aria-label="Upvote video"
-                  >
-                    <ThumbUpIcon fontSize="small" />
-                  </button>
+                  {user && (
+                    <button
+                      className="uservideo-vote-btn"
+                      onClick={() => upvoteVideo(video._id)}
+                      disabled={loading || editingVideoId}
+                    >
+                      <ThumbUpIcon fontSize="small" />
+                    </button>
+                  )}
                 </div>
 
-                {user && (
-                  <div className="uservideo-comment-form">
-                    <input
-                      className="uservideo-comment-input"
-                      type="text"
-                      placeholder="Add a comment..."
-                      value={commentInputs[video._id] || ""}
-                      onChange={(e) =>
-                        handleCommentChange(video._id, e.target.value)
-                      }
-                      disabled={loading}
-                    />
+                <div className="uservideo-comment-form">
+                  <input
+                    type="text"
+                    placeholder="Add a comment..."
+                    value={commentInputs[video._id] || ''}
+                    onChange={(e) => handleCommentChange(video._id, e.target.value)}
+                    disabled={loading || editingVideoId}
+                    className="uservideo-comment-input"
+                  />
+                  {user && (
                     <button
                       className="uservideo-comment-submit"
                       onClick={() => addComment(video._id)}
-                      disabled={loading}
-                      aria-label="Submit comment"
+                      disabled={loading || editingVideoId}
                     >
                       <AddCommentIcon fontSize="small" />
                     </button>
-                  </div>
-                )}
+                  )}
+                </div>
 
                 {video.comments?.length > 0 && (
                   <div className="uservideo-comments">
                     <h4>Comments</h4>
-                    {video.comments.map((comment, index) => (
-                      <p key={index} className="uservideo-comment-text">
-                        <strong>{comment.userName || "Anonymous"}:</strong>{" "}
-                        {comment.text}
-                      </p>
+                    {video.comments.map((comment) => (
+                      <div key={comment._id} className="uservideo-comment-item">
+                        <p className="uservideo-comment-text">
+                          <strong>{comment.userName || "Anonymous"}:</strong> {comment.text}
+                        </p>
+                        {user && (
+                          <button
+                            className="uservideo-reply-btn"
+                            onClick={() => startReply(comment._id)}
+                            disabled={loading || editingVideoId}
+                          >
+                            <ReplyIcon fontSize="small" /> Reply
+                          </button>
+                        )}
+
+                        {replyingTo === comment._id && (
+                          <div className="uservideo-reply-form">
+                            <input
+                              type="text"
+                              placeholder="Write a reply..."
+                              value={replyInputs[comment._id] || ''}
+                              onChange={(e) => handleReplyChange(comment._id, e.target.value)}
+                              disabled={loading}
+                              className="uservideo-reply-input"
+                            />
+                            <button
+                              className="uservideo-reply-submit"
+                              onClick={() => addReply(video._id, comment._id)}
+                              disabled={loading}
+                            >
+                              Send
+                            </button>
+                            <button
+                              className="uservideo-reply-cancel"
+                              onClick={cancelReply}
+                              disabled={loading}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        )}
+
+                        {comment.replies?.length > 0 && (
+                          <div className="uservideo-replies">
+                            {comment.replies.map((reply, index) => (
+                              <p key={index} className="uservideo-reply-text">
+                                <strong>↳ {reply.userName || "Anonymous"}:</strong> {reply.text}
+                              </p>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </div>
                 )}
               </div>
             </div>
-          ))}
-        </div>
-      )}
+          ))
+        )}
+      </div>
     </div>
   );
 };

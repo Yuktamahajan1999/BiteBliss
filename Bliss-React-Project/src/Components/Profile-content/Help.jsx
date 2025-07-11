@@ -1,17 +1,21 @@
 /* eslint-disable no-unused-vars */
-import React, { useState } from 'react';
-import { 
-  FiHelpCircle, FiMail, FiPhone, FiMessageSquare, 
-  FiClock, FiChevronDown, FiShoppingBag, 
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  FiHelpCircle, FiMail, FiPhone, FiMessageSquare,
+  FiClock, FiChevronDown, FiShoppingBag,
   FiCreditCard, FiTruck, FiX, FiSend
 } from 'react-icons/fi';
+import { toast } from 'react-toastify';
+import { getSocket, disconnectSocket } from "../socket";
 
 function HelpPage() {
   const [activeFaq, setActiveFaq] = useState(null);
   const [activeTopic, setActiveTopic] = useState(null);
   const [showChat, setShowChat] = useState(false);
+  const [socketConnected, setSocketConnected] = useState(false);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
+  const socketRef = useRef(null);
 
   const toggleFaq = (index) => {
     setActiveFaq(activeFaq === index ? null : index);
@@ -20,7 +24,131 @@ function HelpPage() {
   const toggleTopic = (index) => {
     setActiveTopic(activeTopic === index ? null : index);
   };
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem("user"));
+    if (!user?.token) {
+      toast.error("Please login to access support chat");
+      return;
+    }
 
+    getSocket(user.token).then(socket => {
+      socketRef.current = socket;
+
+      socketRef.current.on("connect", () => {
+        setSocketConnected(true);
+        const userId = user._id || user.id;
+        socketRef.current.emit("join", {
+          userId,
+          role: "user"
+        });
+      });
+
+      socketRef.current.on("connect_error", (err) => {
+        console.error("Connection error:", err.message);
+        setSocketConnected(false);
+        toast.error("Chat service unavailable. Trying to reconnect...");
+      });
+
+      socketRef.current.on("disconnect", () => {
+        console.log("Socket disconnected");
+        setSocketConnected(false);
+      });
+
+      socketRef.current.on("chatMessage", (message) => {
+        setMessages(prev => {
+          if (prev.some(m => m._id === message._id || m.tempId === message.tempId)) {
+            return prev;
+          }
+          return [
+            ...prev,
+            {
+              ...message,
+              key: message._id || `${message.sender}-${Date.now()}`,
+              timestamp: new Date(message.createdAt || Date.now()).toLocaleTimeString()
+            }
+          ];
+        });
+      });
+    });
+
+    return () => {
+      if (socketRef.current) {
+        const user = JSON.parse(localStorage.getItem("user"));
+        if (user?._id) {
+          socketRef.current.emit("leaveRoom", { userId: user._id });
+        }
+        socketRef.current.off("connect");
+        socketRef.current.off("connect_error");
+        socketRef.current.off("disconnect");
+        socketRef.current.off("chatMessage");
+        socketRef.current.disconnect();
+      }
+      setMessages([]);
+    };
+  }, []);
+
+
+  useEffect(() => {
+    if (!showChat) return;
+
+    const user = JSON.parse(localStorage.getItem("user"));
+    const userId = user?._id || user?.id;
+    if (!userId) return;
+
+    const loadMessages = async () => {
+      try {
+        console.log("📥 Loading chat history for user:", userId);
+        const res = await fetch(`http://localhost:8000/chat/chatmessage?userId=${userId}`);
+        const data = await res.json();
+        console.log("✅ Chat history loaded:", data);
+
+        setMessages(data.map(m => ({
+          ...m,
+          key: m._id,
+          timestamp: new Date(m.createdAt).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+        })));
+      } catch (err) {
+        console.error("❌ Failed to load chat history:", err);
+        setMessages([]);
+      }
+    };
+
+    loadMessages();
+  }, [showChat]);
+
+  const handleSendMessage = (e) => {
+    e.preventDefault();
+    if (!newMessage.trim()) {
+      toast.warning("Please enter a message");
+      return;
+    }
+
+    const user = JSON.parse(localStorage.getItem("user"));
+    if (!user) {
+      toast.error("Please login to send messages");
+      return;
+    }
+
+    const tempId = `temp-${Date.now()}`;
+    const message = {
+      userId: user._id || user.id,
+      sender: "user",
+      text: newMessage,
+      tempId
+    };
+
+    setMessages(prev => [...prev, {
+      ...message,
+      key: tempId,
+      timestamp: new Date().toLocaleTimeString()
+    }]);
+
+    socketRef.current.emit("chatMessage", message);
+    setNewMessage('');
+  };
   const faqs = [
     {
       question: "How do I place an order?",
@@ -62,6 +190,7 @@ function HelpPage() {
 
   const topics = [
     {
+      id: 1,
       title: "Ordering Process",
       icon: <FiShoppingBag />,
       shortDesc: "Learn how to place and manage your food orders",
@@ -79,6 +208,7 @@ function HelpPage() {
       )
     },
     {
+      id: 2,
       title: "Payment Options",
       icon: <FiCreditCard />,
       shortDesc: "Information about accepted payment methods",
@@ -95,6 +225,7 @@ function HelpPage() {
       )
     },
     {
+      id: 3,
       title: "Delivery Information",
       icon: <FiTruck />,
       shortDesc: "Track orders and understand delivery times",
@@ -139,31 +270,6 @@ function HelpPage() {
     }
   ];
 
-  const handleSendMessage = (e) => {
-    e.preventDefault();
-    if (newMessage.trim() === '') return;
-    
-    const userMessage = {
-      id: Date.now(),
-      text: newMessage,
-      sender: 'user',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-    
-    setMessages([...messages, userMessage]);
-    setNewMessage('');
-    
-    setTimeout(() => {
-      const botMessage = {
-        id: Date.now() + 1,
-        text: "Thanks for your message! Our support team will respond shortly.",
-        sender: 'bot',
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
-      setMessages(prev => [...prev, botMessage]);
-    }, 1000);
-  };
-
   return (
     <div className="help-page">
       <div className="help-hero">
@@ -179,24 +285,26 @@ function HelpPage() {
       <div className="topics-section">
         <h2 className="section-title">Popular Help Topics</h2>
         <div className="topics-accordion">
-          {topics.map((topic, index) => (
-            <div 
-              key={index} 
-              className={`topic-card ${activeTopic === index ? 'active' : ''}`}
+          {topics.map((topic) => (
+            <div
+              key={topic.id}
+              className={`topic-card ${activeTopic === topic.id ? 'active' : ''}`}
             >
-              <button 
+              <button
                 className="topic-header"
-                onClick={() => toggleTopic(index)}
+                onClick={() => toggleTopic(topic.id)}
               >
                 <div className="topic-icon">{topic.icon}</div>
                 <div className="topic-title-wrap">
                   <h3 className="topic-title">{topic.title}</h3>
                   <p className="topic-desc">{topic.shortDesc}</p>
                 </div>
-                <FiChevronDown className={`chevron ${activeTopic === index ? 'open' : ''}`} />
+                <FiChevronDown
+                  className={`chevron ${activeTopic === topic.id ? 'open' : ''}`}
+                />
               </button>
-              
-              {activeTopic === index && (
+
+              {activeTopic === topic.id && (
                 <div className="topic-expanded">
                   {topic.fullContent}
                 </div>
@@ -210,8 +318,8 @@ function HelpPage() {
         <h2 className="section-title">Frequently Asked Questions</h2>
         <div className="faq-list">
           {faqs.map((faq, index) => (
-            <div 
-              key={index} 
+            <div
+              key={index}
               className={`faq-item ${activeFaq === index ? 'active' : ''}`}
               onClick={() => toggleFaq(index)}
             >
@@ -234,7 +342,7 @@ function HelpPage() {
         <p className="contact-description">
           Our team is available 24/7 to help with any issues. Average response time is under 15 minutes.
         </p>
-        
+
         <div className="contact-grid">
           {contactMethods.map((method, index) => (
             <div key={index} className="contact-card">
@@ -244,8 +352,8 @@ function HelpPage() {
               <div className="contact-response">
                 <FiClock /> {method.response}
               </div>
-              <button 
-                className="contact-button" 
+              <button
+                className="contact-button"
                 onClick={method.onClick}
               >
                 {method.action}
@@ -258,14 +366,14 @@ function HelpPage() {
           <div className="chat-container">
             <div className="chat-header">
               <h3>Bite Bliss Support Chat</h3>
-              <button 
-                className="close-chat" 
+              <button
+                className="close-chat"
                 onClick={() => setShowChat(false)}
               >
                 <FiX />
               </button>
             </div>
-            
+
             <div className="chat-messages">
               {messages.length === 0 ? (
                 <div className="empty-chat">
@@ -283,9 +391,9 @@ function HelpPage() {
                   </div>
                 </div>
               ) : (
-                messages.map(message => (
-                  <div 
-                    key={message.id} 
+                messages.map((message, index) => (
+                  <div
+                    key={message.key || message._id || `${message.sender}-${index}`}
                     className={`message ${message.sender}`}
                   >
                     <div className="message-content">
@@ -296,7 +404,7 @@ function HelpPage() {
                 ))
               )}
             </div>
-            
+
             <form onSubmit={handleSendMessage} className="chat-input">
               <input
                 type="text"
@@ -307,6 +415,19 @@ function HelpPage() {
               />
               <button type="submit">
                 <FiSend />
+              </button>
+              <button
+                className="close-chat"
+                onClick={() => {
+                  setShowChat(false);
+                  setMessages([]);
+                  if (socketRef.current) {
+                    const user = JSON.parse(localStorage.getItem("user"));
+                    socketRef.current.emit("leaveChat", { userId: user._id });
+                  }
+                }}
+              >
+                <FiX />
               </button>
             </form>
           </div>

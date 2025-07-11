@@ -1,4 +1,5 @@
 import './App.css';
+import { io } from 'socket.io-client';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import Delivery from './Components/Delivery';
@@ -45,17 +46,35 @@ import RecipeDetail from './Components/TasteBot-Features/RecipeDetail';
 import QuickFixMeals from './Components/TasteBot-Features/QuickFixMeals';
 import FamousDishes from './Components/TasteBot-Features/FamousDishes';
 import AvatarPage from './Components/Profile-content/Avataar';
-import Appearance from './Components/Profile-content/Appearance';
 import LocationPage from './Components/Header/Location';
 import ProtectedRoute from './Components/ProtectedRoute';
 import ChefForm from './Components/Profile-content/ChefForm';
 import { useUser } from './Components/UserContext';
+import AllRestaurantsByFood from './Components/Card/AllRestaurants';
+import AdminPage from './Components/Profile-content/Adminpage';
+import RestaurantProfileForm from './Components/Card/Restaurantprofile';
+import DeliveryPartner from './Components/Profile-content/Deliverpartner';
+import { useEffect } from 'react';
+
 
 function App() {
+  useEffect(() => {
+    if (!window.socket) {
+      window.socket = io('http://localhost:8000');
+      window.socket.on("connect", () => {
+        console.log("User Connected:", window.socket.id);
+      });
+    }
 
-    const { user } = useUser();
-    
+    return () => {
+      if (window.socket) {
+        window.socket.disconnect();
+        window.socket = null;
+      }
+    };
+  }, []);
 
+  const { user } = useUser();
   return (
     <div>
       <Routes>
@@ -70,12 +89,16 @@ function App() {
         {/* Protected Routes */}
         <Route path="/delivery" element={<ProtectedRoute><Delivery /></ProtectedRoute>} />
         <Route path="/dining" element={<ProtectedRoute><Dining /></ProtectedRoute>} />
+        <Route path="/Admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
         <Route path="/search" element={<ProtectedRoute><SearchBar /></ProtectedRoute>} />
         <Route path="/location" element={<ProtectedRoute><LocationPage /></ProtectedRoute>} />
         <Route path="/searchmodal" element={<ProtectedRoute><SearchModal /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        <Route path="/deliverypartner" element={<ProtectedRoute><DeliveryPartner /></ProtectedRoute>} />
         <Route path="/restaurantdetails/:id" element={<ProtectedRoute><RestaurantDetails /></ProtectedRoute>} />
         <Route path="/restaurantinfo/:id" element={<ProtectedRoute><RestaurantInfo /></ProtectedRoute>} />
+        <Route path="/allrestaurants" element={<ProtectedRoute><AllRestaurantsByFood /></ProtectedRoute>} />
+        <Route path="/restaurant-profile" element={<ProtectedRoute><RestaurantProfileForm editMode={true} /></ProtectedRoute>} />
         <Route path="/feedback" element={<ProtectedRoute><Feedback /></ProtectedRoute>} />
         <Route path="/profilesection" element={<ProtectedRoute><ProfileSection /></ProtectedRoute>} />
         <Route path="/profile/rating" element={<ProtectedRoute><Rating /></ProtectedRoute>} />
@@ -108,7 +131,6 @@ function App() {
         <Route path="/eatlist" element={<ProtectedRoute><Eatlist /></ProtectedRoute>} />
         <Route path="/rewards" element={<ProtectedRoute><Rewards /></ProtectedRoute>} />
         <Route path="/coupons" element={<ProtectedRoute><Coupons /></ProtectedRoute>} />
-        <Route path="/appearance" element={<ProtectedRoute><Appearance /></ProtectedRoute>} />
         <Route path="/claim-gift-card" element={<ProtectedRoute><ClaimGiftCard /></ProtectedRoute>} />
         <Route path="/buy-gift-card" element={<ProtectedRoute><GiftCardPage /></ProtectedRoute>} />
         <Route path="/paymentpage" element={<ProtectedRoute><PaymentPage /></ProtectedRoute>} />

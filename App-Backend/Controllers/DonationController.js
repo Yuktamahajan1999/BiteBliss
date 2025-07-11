@@ -10,15 +10,19 @@ export const createDonation = async (req, res) => {
       return res.status(401).json({ error: "User not authenticated" });
     }
 
-    const newDonation = new Donation({
+    const donationData = {
       name,
       email,
       amount,
       message,
       userId,
-      paymentId,
-    });
+    };
 
+    if (paymentId) {
+      donationData.paymentId = paymentId;
+    }
+
+    const newDonation = new Donation(donationData);
     await newDonation.save();
 
     res.status(201).json({

@@ -1,6 +1,6 @@
 import multer from "multer";
 import streamifier from "streamifier";
-import cloudinary from "../Config/Cloudinary.js"; 
+import cloudinary from "../Config/Cloudinary.js";
 
 const mediaFilter = (req, file, cb) => {
   if (file.mimetype.startsWith("image/") || file.mimetype.startsWith("video/")) {
@@ -28,29 +28,14 @@ export const uploadToCloudinary = (buffer, folder = "uploads") => {
   });
 };
 
-const resumeStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "./uploads/resumes");
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + "-" + file.originalname);
-  },
-});
-
-const resumeFilter = (req, file, cb) => {
-  const allowedMimes = [
-    "application/pdf",
-    "application/msword",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  ];
-  if (allowedMimes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new Error("Only PDF or Word documents are allowed!"), false);
+export const uploadFromUrlToCloudinary = async (url, folder = "uploads") => {
+  try {
+    const result = await cloudinary.uploader.upload(url, {
+      resource_type: "auto",
+      folder,
+    });
+    return result;
+  } catch (error) {
+    throw error;
   }
 };
-
-export const uploadResume = multer({
-  storage: resumeStorage,
-  fileFilter: resumeFilter,
-});

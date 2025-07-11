@@ -5,6 +5,8 @@ import {
   updatePartnerApplication,
   deletepartnerApplication,
   getSingleApplication,
+  getApprovedApplication,
+  updatePartnerAppDetails,
 } from '../Controllers/PartnerController.js';
 
 import checkLogin from '../Middlewares/CheckLogin.js';
@@ -51,6 +53,17 @@ partnerAppRouter.delete(
   checkLogin,
   checkRole(['admin']),
   deletepartnerApplication
+);
+
+// Approved Application
+partnerAppRouter.get('/getApproveApp',checkLogin,checkRole(['restaurantowner']),getApprovedApplication)
+
+// Update application
+partnerAppRouter.put(
+  '/updatepartnerappdetails',
+  checkLogin,
+  checkRole(['restaurantowner']),
+  updatePartnerAppDetails
 );
 
 export default partnerAppRouter;

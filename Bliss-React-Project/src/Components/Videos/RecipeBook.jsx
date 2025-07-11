@@ -25,6 +25,7 @@ const RecipeBook = () => {
         setError(null);
         try {
             const response = await axios.get('http://localhost:8000/recipebook');
+            console.log('Fetched recipes:', response.data.recipes);
             setRecipes(response.data.recipes || []);
         } catch (error) {
             setError('Failed to fetch recipes');
@@ -77,7 +78,7 @@ const RecipeBook = () => {
             url,
             type: isVideo ? 'video' : 'image',
             name: 'link-media',
-            isFile: false // <-- ensure this!
+            isFile: false
         };
 
         setFormData(prev => ({
@@ -119,11 +120,9 @@ const RecipeBook = () => {
         submitData.append("ingredients", JSON.stringify(ingredientsArray));
         submitData.append("steps", JSON.stringify(stepsArray));
 
-        // Add existing media (links)
-        const existingMedia = formData.media.filter(m => !m.isFile);
-        submitData.append("existingMedia", JSON.stringify(existingMedia));
+        const existingMedia = formData.media.filter(m => !m.isFile).map(m => m.url);
+        submitData.append("mediaLinks", JSON.stringify(existingMedia));
 
-        // Add new files
         mediaFiles.forEach(file => {
             submitData.append("media", file);
         });
@@ -161,7 +160,7 @@ const RecipeBook = () => {
                 url: item.url,
                 type: item.type,
                 name: item.name || 'media',
-                isFile: item.isFile === undefined ? false : item.isFile // backend always provides isFile
+                isFile: item.isFile === undefined ? false : item.isFile
             })) : []
         });
         setMediaFiles([]);

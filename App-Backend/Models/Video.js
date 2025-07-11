@@ -1,5 +1,24 @@
 import mongoose from "mongoose";
 
+let ReplySchema = new mongoose.Schema({
+    text: {
+        type: String,
+        required: true,
+    },
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        required: true,
+        refPath: "userType"
+    },
+    userName: {
+        type: String,
+    },
+    userType: {
+        type: String,
+        required: true,
+    }
+}, { timestamps: true });
+
 let CommentSchema = new mongoose.Schema({
     text: {
         type: String,
@@ -7,10 +26,19 @@ let CommentSchema = new mongoose.Schema({
     },
     userId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
+        refPath: "userType",
         required: true,
-    }
+    },
+    userName: {
+        type: String,
+    },
+    userType: {
+        type: String,
+        required: true,
+    },
+    replies: [ReplySchema]
 }, { timestamps: true });
+
 
 let VideoSchema = new mongoose.Schema({
     title: {
@@ -36,10 +64,6 @@ let VideoSchema = new mongoose.Schema({
     tags: {
         type: [String],
         default: [],
-    },
-    thumbnail: {
-        type: String,
-        required: false,
     },
     views: {
         type: Number,

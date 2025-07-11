@@ -54,6 +54,15 @@ const ChefProfileSchema = new mongoose.Schema({
         type: Boolean,
         default: true
     },
+    status: {
+        type: String,
+        enum: ['pending', 'approved', 'rejected'],
+        default: 'pending'
+    },
+    isApproved: {
+        type: Boolean,
+        default: false
+    },
     isHygienic: {
         type: Boolean,
         required: true
@@ -62,7 +71,21 @@ const ChefProfileSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true
-    }
+    },
+    rating: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 5
+    },
+    ratings: [
+        {
+            reviewer: String,
+            comment: String,
+            rating: { type: Number, min: 1, max: 5 },
+            date: { type: Date, default: Date.now }
+        }
+    ],
 }, { timestamps: true });
 
 const ChefProfile = mongoose.model('ChefProfile', ChefProfileSchema);
