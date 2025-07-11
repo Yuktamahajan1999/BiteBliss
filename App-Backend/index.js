@@ -92,7 +92,7 @@ app.use('/trainorder', TrainOrderrouter);
 app.use('/deliverypartner', deliveryrouter);
 app.use('/chef', ChefRouter);
 app.use('/dish', Dishrouter);
-app.use('/chat',chatRouter)
+app.use('/chat', chatRouter)
 app.use('/fixmeal', QuickFixMealsRouter);
 app.use('/suggestmood', SuggestMoodRouter);
 app.use('/coupons', couponRouter);
@@ -118,7 +118,9 @@ app.use('/wishlist', Wishlistrouter);
 app.use('/giftcard', giftcardrouter);
 app.use('/notification', notificationRouter);
 
-mongoose.connect(process.env.MONGODB_URI)
+mongoose.connect(process.env.MONGODB_ATLAS_URI, {
+  dbName: "BiteBliss"
+})
   .then(() => { console.log('Connected to MongoDB'); })
   .catch(err => { console.error('MongoDB connection error:', err); });
 
