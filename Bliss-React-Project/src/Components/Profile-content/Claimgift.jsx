@@ -21,7 +21,7 @@ const ClaimGiftCard = () => {
 
     try {
       const response = await axios.post(
-        'http://localhost:8000/giftcard/claim',
+        `${import.meta.env.VITE_API_BASE_URL}/giftcard/claim`,
         { cardCode, pin },
         {
           headers: {
@@ -30,7 +30,6 @@ const ClaimGiftCard = () => {
           },
         }
       );
-
       setSuccess(response.data.message);
       setCardCode('');
       setPin('');

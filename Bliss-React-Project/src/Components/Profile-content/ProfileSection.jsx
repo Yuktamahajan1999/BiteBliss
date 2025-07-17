@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable no-unused-vars */
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -39,7 +40,7 @@ const UserProfileSection = () => {
 
       let profileData = null;
       try {
-        const res = await axios.get("http://localhost:8000/userprofile/getUserProfile", {
+        const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/userprofile/getUserProfile`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.status === 401) {
@@ -146,8 +147,8 @@ const UserProfileSection = () => {
       }
 
       const url = isExistingProfile
-        ? 'http://localhost:8000/userprofile/updateProfile'
-        : 'http://localhost:8000/userprofile';
+        ? `${import.meta.env.VITE_API_BASE_URL}/userprofile/updateProfile`
+        : `${import.meta.env.VITE_API_BASE_URL}/userprofile`;
       const method = isExistingProfile ? axios.put : axios.post;
 
       await method(url, formData, {
@@ -157,7 +158,7 @@ const UserProfileSection = () => {
         }
       });
 
-      const updatedProfile = await axios.get("http://localhost:8000/userprofile/getUserProfile", {
+      const updatedProfile = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/userprofile/getUserProfile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -189,7 +190,7 @@ const UserProfileSection = () => {
     if (!window.confirm("Are you sure you want to delete your profile?")) return;
 
     try {
-      await axios.delete("http://localhost:8000/userprofile/deleteProfile", {
+      await axios.delete(`${import.meta.env.VITE_API_BASE_URL}/userprofile/deleteProfile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 

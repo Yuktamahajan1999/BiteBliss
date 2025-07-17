@@ -22,7 +22,7 @@ const GiftCardPage = () => {
 
     try {
       const res = await axios.post(
-        'http://localhost:8000/giftcard/create',
+        `${import.meta.env.VITE_API_BASE_URL}/giftcard/create`,
         { amount, occasion, message },
         {
           headers: {

@@ -12,12 +12,9 @@ import { toast } from 'react-toastify';
 import axios from 'axios';
 import ExploreOptions from '../Footer/ExploreOptions';
 
-const useQuery = () => new URLSearchParams(useLocation().search);
-
 const Card = ({ filterType }) => {
   const [wishList, setWishList] = useState([]);
   const [hiddenCards, setHiddenCards] = useState([]);
-  const [message, setMessage] = useState('');
   const [displayedRestaurants, setDisplayedRestaurants] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [allRestaurantsCount, setAllRestaurantsCount] = useState(0);
@@ -73,83 +70,83 @@ const Card = ({ filterType }) => {
     }
   }
 
-useEffect(() => {
-  const getRestaurantData = async () => {
-    setIsLoading(true);
-    try {
-      const res = await axios.get("http://localhost:8000/restaurant/getAllrestaurant");
-      const data = res.data?.data || [];
+  useEffect(() => {
+    const getRestaurantData = async () => {
+      setIsLoading(true);
+      try {
+        const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/restaurant/getAllrestaurant`);
+        const data = res.data?.data || [];
 
-      let restaurantList = data.map(restaurant => ({
-        ...restaurant,
-        id: restaurant._id,
-        deliveryAvailable: restaurant.deliveryAvailable === true,
-        diningAvailable: restaurant.diningAvailability === true,
-        isOpen: isRestaurantOpen(restaurant.openHours)
-      }));
+        let restaurantList = data.map(restaurant => ({
+          ...restaurant,
+          id: restaurant._id,
+          deliveryAvailable: restaurant.deliveryAvailable === true,
+          diningAvailable: restaurant.diningAvailability === true,
+          isOpen: isRestaurantOpen(restaurant.openHours)
+        }));
 
-      setAllRestaurantsCount(restaurantList.length);
+        setAllRestaurantsCount(restaurantList.length);
 
-      if (filterType === "dining") {
-        restaurantList = restaurantList.filter(r => r.diningAvailable);
-      } else if (filterType === "delivery") {
-        restaurantList = restaurantList.filter(r => r.deliveryAvailable);
-      }
-
-      setDisplayedRestaurants(restaurantList);
-
-      const token = localStorage.getItem('token');
-      const user = JSON.parse(localStorage.getItem('user'));
-      
-      if (token && user?.role === 'user') {
-        try {
-          const wishlistRes = await axios.get("http://localhost:8000/wishlist", {
-            headers: { Authorization: `Bearer ${token}` },
-          }).catch(err => {
-            if (err.response?.status === 403 || err.response?.status === 401) {
-              return { data: { wishlist: [] } };
-            }
-            throw err;
-          });
-          const wishIds = (wishlistRes.data.wishlist || []).map(item => item._id);
-          setWishList(wishIds);
-        } catch (wishlistError) {
-          console.log(wishlistError);
-          setWishList([]);
+        if (filterType === "dining") {
+          restaurantList = restaurantList.filter(r => r.diningAvailable);
+        } else if (filterType === "delivery") {
+          restaurantList = restaurantList.filter(r => r.deliveryAvailable);
         }
 
-        try {
-          const hiddenRes = await axios.get("http://localhost:8000/restauranthidden/gethidden", {
-            headers: { Authorization: `Bearer ${token}` },
-          }).catch(err => {
-            if (err.response?.status === 403 || err.response?.status === 401) {
-              return { data: { hiddenRestaurants: [] } };
-            }
-            throw err;
-          });
-          const hiddenIds = (hiddenRes.data.hiddenRestaurants || []).map(rest => rest._id);
-          setHiddenCards(hiddenIds);
-        } catch (hiddenError) {
-          console.log(hiddenError);
+        setDisplayedRestaurants(restaurantList);
+
+        const token = localStorage.getItem('token');
+        const user = JSON.parse(localStorage.getItem('user'));
+
+        if (token && user?.role === 'user') {
+          try {
+            const wishlistRes = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/wishlist`, {
+              headers: { Authorization: `Bearer ${token}` },
+            }).catch(err => {
+              if (err.response?.status === 403 || err.response?.status === 401) {
+                return { data: { wishlist: [] } };
+              }
+              throw err;
+            });
+            const wishIds = (wishlistRes.data.wishlist || []).map(item => item._id);
+            setWishList(wishIds);
+          } catch (wishlistError) {
+            console.log(wishlistError);
+            setWishList([]);
+          }
+
+          try {
+            const hiddenRes = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/restauranthidden/gethidden`, {
+              headers: { Authorization: `Bearer ${token}` },
+            }).catch(err => {
+              if (err.response?.status === 403 || err.response?.status === 401) {
+                return { data: { hiddenRestaurants: [] } };
+              }
+              throw err;
+            });
+            const hiddenIds = (hiddenRes.data.hiddenRestaurants || []).map(rest => rest._id);
+            setHiddenCards(hiddenIds);
+          } catch (hiddenError) {
+            console.log(hiddenError);
+            setHiddenCards([]);
+          }
+        } else {
+          setWishList([]);
           setHiddenCards([]);
         }
-      } else {
-        setWishList([]);
-        setHiddenCards([]);
+      } catch (error) {
+        toast.error("Failed to load restaurants. Please try again later", {
+          position: "top-center",
+          autoClose: 3000,
+        });
+        console.error(error);
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      toast.error("Failed to load restaurants. Please try again later", {
-        position: "top-center",
-        autoClose: 3000,
-      });
-      console.error(error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
 
-  getRestaurantData();
-}, [filterType]);
+    getRestaurantData();
+  }, [filterType]);
 
   const toggleWishlist = async (id, e) => {
     e.stopPropagation();
@@ -182,13 +179,10 @@ useEffect(() => {
       };
 
       if (isWished) {
-        const res = await axios.delete(
-          "http://localhost:8000/wishlist/removefromwishlist",
-          {
-            ...config,
-            data: { restaurantId: id }
-          }
-        );
+        const res = await axios.delete(`${import.meta.env.VITE_API_BASE_URL}/wishlist/removefromwishlist`, {
+          ...config,
+          data: { restaurantId: id }
+        });
         setWishList(prev => prev.filter(itemId => itemId !== id));
         toast.success("Removed from your favorites", {
           position: "top-center",
@@ -196,7 +190,7 @@ useEffect(() => {
         });
       } else {
         const res = await axios.post(
-          "http://localhost:8000/wishlist/addtowishlist",
+          `${import.meta.env.VITE_API_BASE_URL}/wishlist/addtowishlist`,
           { restaurantId: id },
           config
         );
@@ -252,7 +246,7 @@ useEffect(() => {
     const isHidden = hiddenCards.includes(id);
     try {
       if (isHidden) {
-        const res = await axios.delete("http://localhost:8000/restauranthidden/unhide", {
+        const res = await axios.delete(`${import.meta.env.VITE_API_BASE_URL}/restauranthidden/unhide`, {
           headers: { Authorization: `Bearer ${token}` },
           data: { restaurantId: id }
         });
@@ -262,7 +256,7 @@ useEffect(() => {
           autoClose: 2000,
         });
       } else {
-        const res = await axios.post("http://localhost:8000/restauranthidden/hide",
+        const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/restauranthidden/hide`,
           { restaurantId: id },
           { headers: { Authorization: `Bearer ${token}` } }
         );

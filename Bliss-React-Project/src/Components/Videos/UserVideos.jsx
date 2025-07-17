@@ -29,17 +29,18 @@ const UserVideos = () => {
   const fetchVideos = async () => {
     try {
       setLoading(true);
-      const res = await axios.get("http://localhost:8000/videos/user", {
-        headers: user ? { Authorization: `Bearer ${user.token}` } : {},
-        params: {
-          uploadedByType: "User",
-        },
+      const res = await axios.get(
+        `${import.meta.env.VITE_API_BASE_URL}/videos/user`,
+        {
+          headers: user ? { Authorization: `Bearer ${user.token}` } : {},
+          params: { uploadedByType: "User" }
+        }
+      );
+      const filteredVideos = res.data.filter(video => {
+        if (!video.comments) return true;
+        return video.comments.every(comment => comment.userType);
       });
-       const filteredVideos = res.data.filter(video => {
-      if (!video.comments) return true;
-      return video.comments.every(comment => comment.userType);
-    });
-    
+
       setVideos(res.data);
       setErrorMsg("");
     } catch (err) {
@@ -80,12 +81,12 @@ const UserVideos = () => {
     try {
       setLoading(true);
       const response = await axios.post(
-        "http://localhost:8000/videos/user/uploadvideo",
+        `${import.meta.env.VITE_API_BASE_URL}/videos/user/uploadvideo`,
         formData,
         {
           headers: {
-            "Content-Type": "multipart/form-data",
-            Authorization: `Bearer ${user.token}`,
+            'Content-Type': 'multipart/form-data',
+            Authorization: `Bearer ${user.token}`
           },
         }
       );
@@ -110,9 +111,12 @@ const UserVideos = () => {
 
     try {
       setLoading(true);
-      await axios.delete(`http://localhost:8000/videos/user/deletevideo?id=${videoId}`, {
-        headers: { Authorization: `Bearer ${user.token}` }
-      });
+      await axios.delete(
+        `${import.meta.env.VITE_API_BASE_URL}/videos/user/deletevideo?id=${videoId}`,
+        {
+          headers: { Authorization: `Bearer ${user.token}` }
+        }
+      );
       fetchVideos();
       setErrorMsg('');
     } catch (err) {
@@ -156,7 +160,7 @@ const UserVideos = () => {
       setLoading(true);
 
       const response = await axios.post(
-        `http://localhost:8000/videos/upvote?videoId=${videoId}`,
+        `${import.meta.env.VITE_API_BASE_URL}/videos/upvote?videoId=${videoId}`,
         {},
         {
           headers: {
@@ -223,15 +227,19 @@ const UserVideos = () => {
 
     try {
       setLoading(true);
-      await axios.post('http://localhost:8000/videos/comment', {
-        videoId,
-        text,
-        userId: user.id,
-        userName: user.name || "User",
-        userType: user.role || "User"
-      }, {
-        headers: { Authorization: `Bearer ${user.token}` }
-      });
+      await axios.post(
+        `${import.meta.env.VITE_API_BASE_URL}/videos/comment`,
+        {
+          videoId,
+          text,
+          userId: user.id,
+          userName: user.name || "User",
+          userType: user.role || "User"
+        },
+        {
+          headers: { Authorization: `Bearer ${user.token}` }
+        }
+      );
       setCommentInputs((prev) => ({ ...prev, [videoId]: '' }));
       fetchVideos();
     } catch (err) {
@@ -251,16 +259,20 @@ const UserVideos = () => {
 
     try {
       setLoading(true);
-      await axios.post('http://localhost:8000/videos/addreply', {
-        videoId,
-        commentId,
-        text: replyText,
-        userId: user.id,
-        userName: user.name || "User",
-        userType: user.role || "User"
-      }, {
-        headers: { Authorization: `Bearer ${user.token}` }
-      });
+      await axios.post(
+        `${import.meta.env.VITE_API_BASE_URL}/videos/addreply`,
+        {
+          videoId,
+          commentId,
+          text: replyText,
+          userId: user.id,
+          userName: user.name || "User",
+          userType: user.role || "User"
+        },
+        {
+          headers: { Authorization: `Bearer ${user.token}` }
+        }
+      );
 
       setReplyInputs((prev) => ({ ...prev, [commentId]: '' }));
       setReplyingTo(null);
@@ -295,12 +307,16 @@ const UserVideos = () => {
         formData.append('video', videoFile);
       }
 
-      await axios.put(`http://localhost:8000/videos/user/updatevideo?id=${videoId}`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          Authorization: `Bearer ${user.token}`
+      await axios.put(
+        `${import.meta.env.VITE_API_BASE_URL}/videos/user/updatevideo?id=${videoId}`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            Authorization: `Bearer ${user.token}`
+          }
         }
-      });
+      );
 
       setEditingVideoId(null);
       setVideoFile(null);

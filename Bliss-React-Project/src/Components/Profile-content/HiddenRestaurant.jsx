@@ -25,14 +25,11 @@ const HiddenRestaurants = () => {
                 setAuthError(true);
                 return;
             }
-
-            const res = await axios.get("http://localhost:8000/restauranthidden/gethidden", {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
+            const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/restauranthidden/gethidden`, {
+                headers: { Authorization: `Bearer ${token}` },
                 withCredentials: true
             });
-            
+
             if (res.data?.hiddenRestaurants) {
                 setHiddenRestaurants(res.data.hiddenRestaurants);
             } else {
@@ -69,19 +66,15 @@ const HiddenRestaurants = () => {
         }
 
         try {
-            await axios.delete("http://localhost:8000/restauranthidden/unhide", {
+            await axios.delete(`${import.meta.env.VITE_API_BASE_URL}/restauranthidden/unhide`, {
                 data: { restaurantId },
-                headers: { 
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
+                headers: { Authorization: `Bearer ${token}` },
                 withCredentials: true
             });
-            
             if (typeof unhideRestaurant === "function") {
                 unhideRestaurant(restaurantId);
             }
-            
+
             setHiddenRestaurants(prev => prev.filter(r => r._id !== restaurantId));
             toast.success('Restaurant is now visible', {
                 position: 'top-center',

@@ -24,7 +24,7 @@ const RecipeBook = () => {
         setIsLoading(true);
         setError(null);
         try {
-            const response = await axios.get('http://localhost:8000/recipebook');
+            const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/recipebook`);
             console.log('Fetched recipes:', response.data.recipes);
             setRecipes(response.data.recipes || []);
         } catch (error) {
@@ -136,9 +136,9 @@ const RecipeBook = () => {
 
         try {
             if (editingId) {
-                await axios.put(`http://localhost:8000/recipebook/updaterecipe?id=${editingId}`, submitData, config);
+                await axios.put(`${import.meta.env.VITE_API_BASE_URL}/recipebook/updaterecipe?id=${editingId}`, submitData, config);
             } else {
-                await axios.post('http://localhost:8000/recipebook/addrecipe', submitData, config);
+                await axios.post(`${import.meta.env.VITE_API_BASE_URL}/recipebook/addrecipe`, submitData, config);
             }
             resetForm();
             await getAllRecipes();
@@ -173,7 +173,7 @@ const RecipeBook = () => {
         setIsLoading(true);
         setError(null);
         try {
-            await axios.delete(`http://localhost:8000/recipebook/deleterecipe?id=${id}`, {
+            await axios.delete(`${import.meta.env.VITE_API_BASE_URL}/recipebook/deleterecipe?id=${id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             await getAllRecipes();

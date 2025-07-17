@@ -144,7 +144,7 @@ function RestaurantProfileForm() {
 
     const fetchOwnersRestaurant = async () => {
       try {
-        const res = await axios.get('http://localhost:8000/restaurant/getAllrestaurant');
+        const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/restaurant/getAllrestaurant`);
         const all = res.data?.data || [];
         const ownerRest = all.find(r => {
           if (!r.restaurantowner) return false;
@@ -292,8 +292,8 @@ function RestaurantProfileForm() {
       formData.append('openHours', JSON.stringify(restaurantForm.openHours));
 
       const apiUrl = editMode && restaurantId
-        ? `http://localhost:8000/restaurant/updaterestaurant?id=${restaurantId}`
-        : 'http://localhost:8000/restaurant';
+        ? `${import.meta.env.VITE_API_BASE_URL}/restaurant/updaterestaurant?id=${restaurantId}`
+        : `${import.meta.env.VITE_API_BASE_URL}/restaurant`;
 
       if (editMode && restaurantId) {
         await axios.put(apiUrl, formData, {
@@ -311,7 +311,7 @@ function RestaurantProfileForm() {
         });
       }
 
-      const res = await axios.get('http://localhost:8000/restaurant/getAllrestaurant');
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/restaurant/getAllrestaurant`);
       const all = res.data?.data || [];
       const ownerRest = all.find(r => {
         if (!r.restaurantowner) return false;

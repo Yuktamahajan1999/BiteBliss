@@ -32,7 +32,7 @@ function PartnerWithUs() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post('http://localhost:8000/partnerapp', formData, {
+      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/partnerapp`, formData, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -65,7 +65,7 @@ function PartnerWithUs() {
 
         if (modalSeen === 'true' || role !== 'owner') return;
 
-        const res = await axios.get('http://localhost:8000/partnerapp/getApproveApp', {
+        const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/partnerapp/getApproveApp`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.data && res.data.status === 'accepted') {
@@ -98,7 +98,7 @@ function PartnerWithUs() {
         const token = localStorage.getItem('token');
         const role = localStorage.getItem('role');
         if (role !== 'owner') return;
-        const res = await axios.get('http://localhost:8000/partnerapp/getpartnerapp', {
+        const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/partnerapp/getpartnerapp`, {
           headers: { Authorization: `Bearer ${token}` }
         });
 

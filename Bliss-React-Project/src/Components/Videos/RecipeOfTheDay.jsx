@@ -12,9 +12,13 @@ function RecipeOfTheDay() {
   useEffect(() => {
     const retrieveRecipeOfTheDay = async () => {
       try {
-        const res = await axios.get("http://localhost:8000/recipebook/getrecipeofday", {
-          withCredentials: true
-        });
+        const res = await axios.get(
+          `${import.meta.env.VITE_API_BASE_URL}/recipebook/getrecipeofday`,
+          {
+            withCredentials: true,
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          }
+        );
         if (res.data.recipe) {
           setRecipe(res.data.recipe);
         } else {

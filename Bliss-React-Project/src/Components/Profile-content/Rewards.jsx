@@ -22,7 +22,7 @@ const Rewards = () => {
 
   const fetchRewards = async () => {
     try {
-      const res = await axios.get("http://localhost:8000/rewards", {
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/rewards`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -35,7 +35,7 @@ const Rewards = () => {
 
   const fetchUserPoints = async () => {
     try {
-      const res = await axios.get("http://localhost:8000/rewards/userpoints", {
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/rewards/userpoints`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
       });
       setUserPoints(res.data.points);
@@ -57,7 +57,7 @@ const Rewards = () => {
     const token = localStorage.getItem('token');
     try {
       await axios.post(
-        "http://localhost:8000/rewards/redeemedReward",
+        `${import.meta.env.VITE_API_BASE_URL}/rewards/redeemedReward`,
         { rewardTitle: reward.title },
         {
           headers: {

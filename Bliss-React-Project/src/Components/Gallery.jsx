@@ -56,7 +56,9 @@ const GalleryRestaurants = ({ itemsPerPage = 4, title }) => {
   useEffect(() => {
     const fetchTopRestaurants = async () => {
       try {
-        const response = await axios.get('http://localhost:8000/restaurant/getAllrestaurant?top=10');
+        const response = await axios.get(
+          `${import.meta.env.VITE_API_BASE_URL}/restaurant/getAllrestaurant?top=10`
+        );
         if (response.data.success) {
           setRestaurantData(response.data.data);
         }
@@ -78,7 +80,7 @@ const GalleryRestaurants = ({ itemsPerPage = 4, title }) => {
             {itemsToDisplay.map((restaurant, index) => (
               <div className="gallery-section-restaurants" key={index}>
                 <Link
-                to={`/restaurantdetails/${restaurant._id}`}
+                  to={`/restaurantdetails/${restaurant._id}`}
                 >
                   <div className="custom-card-restaurants">
                     <img src={restaurant.image} alt={restaurant.alt} className="custom-card-media" />

@@ -40,7 +40,6 @@ const RestaurantDetails = () => {
   const [acceptingBookings, setAcceptingBookings] = useState(true);
   const [cart, setCart] = useState({ items: {}, restaurant: null });
   const [deliveryPartners, setDeliveryPartners] = useState([]);
-  const [selectedDeliveryPartner, setSelectedDeliveryPartner] = useState('');
   const [bookings, setBookings] = useState([]);
   const [orders, setOrders] = useState([]);
   const [bookingTab, setBookingTab] = useState('pending');
@@ -153,10 +152,9 @@ const RestaurantDetails = () => {
           return;
         }
 
-        const response = await axios.get('http://localhost:8000/deliverypartner/getAllpartners', {
+        const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/deliverypartner/getAllpartners`, {
           headers: { Authorization: `Bearer ${token}` }
         });
-
         console.log('Delivery partners response:', response.data);
 
         let partners = [];
@@ -187,7 +185,7 @@ const RestaurantDetails = () => {
       if (!token) return;
 
       const response = await axios.get(
-        `http://localhost:8000/order/getByRestaurant?id=${id}`,
+        `${import.meta.env.VITE_API_BASE_URL}/order/getByRestaurant?id=${id}`,
         {
           headers: { Authorization: `Bearer ${token}` },
           params: { populate: 'deliveryPartner,userId,address,payment' }
@@ -223,9 +221,8 @@ const RestaurantDetails = () => {
     try {
       const token = localStorage.getItem("token");
       if (!token) return;
-
       const response = await axios.get(
-        `http://localhost:8000/bookings/getBookingsByRestaurant?id=${id}`,
+        `${import.meta.env.VITE_API_BASE_URL}/bookings/getBookingsByRestaurant?id=${id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -271,7 +268,7 @@ const RestaurantDetails = () => {
           return;
         }
 
-        const response = await axios.get('http://localhost:8000/wishlist', {
+        const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/wishlist`, {
           headers: { Authorization: `Bearer ${token}` }
         });
 
@@ -299,12 +296,10 @@ const RestaurantDetails = () => {
           setCart({ items: {}, restaurant: null });
           return;
         }
-
-        const res = await axios.get('http://localhost:8000/cart/getcart', {
+        const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/cart/getcart`, {
           headers: { Authorization: `Bearer ${token}` },
           params: { restaurantId: id }
         });
-
         const itemsObj = (res.data.items || []).reduce((acc, item) => {
           acc[item.name] = item;
           return acc;
@@ -327,7 +322,7 @@ const RestaurantDetails = () => {
     const getRestaurantList = async () => {
       try {
         const res = await axios.get(
-          `http://localhost:8000/restaurant/getRestaurantById?id=${id}`
+          `${import.meta.env.VITE_API_BASE_URL}/restaurant/getRestaurantById?id=${id}`
         );
 
         const images = [];
@@ -440,7 +435,7 @@ const RestaurantDetails = () => {
       };
 
       if (isWished) {
-        await axios.delete("http://localhost:8000/wishlist/removefromwishlist", {
+        await axios.delete(`${import.meta.env.VITE_API_BASE_URL}/wishlist/removefromwishlist`, {
           ...config,
           data: { restaurantId: id }
         });
@@ -451,7 +446,7 @@ const RestaurantDetails = () => {
         });
       } else {
         await axios.post(
-          "http://localhost:8000/wishlist/addtowishlist",
+          `${import.meta.env.VITE_API_BASE_URL}/wishlist/addtowishlist`,
           { restaurantId: id },
           config
         );
@@ -484,17 +479,17 @@ const RestaurantDetails = () => {
 
   const canPlaceOrder = () => {
     if (!restaurant) return false;
-    // if (!isOpen) {
-    //   const nextOpenMsg = getNextOpeningTime();
-    //   toast.error(
-    //     `Sorry, we're currently closed.${nextOpenMsg ? " We'll be back " + nextOpenMsg + "." : ""}`
-    //   );
-    //   return false;
-    // }
+    if (!isOpen) {
+      const nextOpenMsg = getNextOpeningTime();
+      toast.error(
+        `Sorry, we're currently closed.${nextOpenMsg ? " We'll be back " + nextOpenMsg + "." : ""}`
+      );
+      return false;
+    }
 
-    // if (isAboutToClose) {
-    //   toast.warning(`Hurry! We're closing soon at ${formatTime(closingSoonTime)}. Please complete your order quickly.`);
-    // }
+    if (isAboutToClose) {
+      toast.warning(`Hurry! We're closing soon at ${formatTime(closingSoonTime)}. Please complete your order quickly.`);
+    }
 
     if (deliveryMode === 'delivery' && !deliveryAvailable) {
       if (deliveryUnavailableReason) {
@@ -540,7 +535,7 @@ const RestaurantDetails = () => {
 
     try {
       const response = await axios.post(
-        'http://localhost:8000/cart/addtocart',
+        `${import.meta.env.VITE_API_BASE_URL}/cart/addtocart`,
         {
           restaurantId: restaurant._id,
           itemName,
@@ -600,7 +595,7 @@ const RestaurantDetails = () => {
     }
 
     try {
-      const response = await axios.delete('http://localhost:8000/cart/removefromcart', {
+      const response = await axios.delete(`${import.meta.env.VITE_API_BASE_URL}/cart/removefromcart`, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -653,7 +648,7 @@ const RestaurantDetails = () => {
       }
 
       const response = await axios.put(
-        `http://localhost:8000/bookings/updateBooking?id=${bookingId}`,
+        `${import.meta.env.VITE_API_BASE_URL}/bookings/updateBooking?id=${bookingId}`,
         {
           status: 'confirmed',
           respondedBy: user.id
@@ -691,9 +686,8 @@ const RestaurantDetails = () => {
         navigate('/login');
         return;
       }
-
       const response = await axios.put(
-        `http://localhost:8000/bookings/updateBooking?id=${bookingId}`,
+        `${import.meta.env.VITE_API_BASE_URL}/bookings/updateBooking?id=${bookingId}`,
         {
           status: 'cancelled',
           respondedBy: user.id,
@@ -734,15 +728,13 @@ const RestaurantDetails = () => {
       }
 
       const response = await axios.put(
-        `http://localhost:8000/bookings/updateBooking?id=${bookingId}`,
+        `${import.meta.env.VITE_API_BASE_URL}/bookings/updateBooking?id=${bookingId}`,
         {
           status: 'waitlisted',
           respondedBy: user.id
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-
-      console.log("Waitlist Booking Response:", response.data);
 
       const updated = response?.data?.booking;
       if (updated && updated.status === 'waitlisted') {
@@ -763,25 +755,25 @@ const RestaurantDetails = () => {
       toast.error(error.response?.data?.error || 'Failed to waitlist booking');
     }
   };
-const orderStatusFlow = {
-  pending: ['restaurant_accepted', 'cancelled'],
-  restaurant_accepted: ['preparing', 'cancelled'],
-  preparing: ['ready_for_pickup', 'cancelled'],
-  ready_for_pickup: ['out_for_delivery', 'cancelled'],
-  out_for_delivery: ['delivered'],
-  delivered: [],
-  cancelled: []
-};
+  const orderStatusFlow = {
+    pending: ['restaurant_accepted', 'cancelled'],
+    restaurant_accepted: ['preparing', 'cancelled'],
+    preparing: ['ready_for_pickup', 'cancelled'],
+    ready_for_pickup: ['out_for_delivery', 'cancelled'],
+    out_for_delivery: ['delivered'],
+    delivered: [],
+    cancelled: []
+  };
 
-const statusDisplayNames = {
-  pending: "Pending Approval",
-  restaurant_accepted: "Order Accepted",
-  preparing: "Preparing",
-  ready_for_pickup: "Ready for Pickup",
-  out_for_delivery: "Out for Delivery",
-  delivered: "Delivered",
-  cancelled: "Cancelled"
-};
+  const statusDisplayNames = {
+    pending: "Pending Approval",
+    restaurant_accepted: "Order Accepted",
+    preparing: "Preparing",
+    ready_for_pickup: "Ready for Pickup",
+    out_for_delivery: "Out for Delivery",
+    delivered: "Delivered",
+    cancelled: "Cancelled"
+  };
   const handleUpdateOrderStatus = async (orderId, newStatus) => {
     try {
       if (!orderId) {
@@ -859,9 +851,8 @@ const statusDisplayNames = {
       if (statusTimestamps[newStatus]) {
         Object.assign(updateData, statusTimestamps[newStatus]);
       }
-
       const response = await axios.put(
-        `http://localhost:8000/order/updateOrder`,
+        `${import.meta.env.VITE_API_BASE_URL}/order/updateOrder`,
         updateData,
         {
           params: { id: orderToUpdate._id },
@@ -885,7 +876,7 @@ const statusDisplayNames = {
 
       if (newStatus === 'ready_for_pickup') {
         const token = localStorage.getItem('token');
-        const partnersRes = await axios.get('http://localhost:8000/deliverypartner/getAllpartners', {
+        const partnersRes = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/deliverypartner/getAllpartners`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setDeliveryPartners(partnersRes.data.data || []);
@@ -954,7 +945,7 @@ const statusDisplayNames = {
           handleAddToCart(item);
         }}
         className="restaurant-add-btn"
-        disabled={/* !isOpen || */ (deliveryMode === 'delivery' && !deliveryAvailable)}
+        disabled={!isOpen || (deliveryMode === 'delivery' && !deliveryAvailable)}
       >
         ADD
       </button>
@@ -1028,7 +1019,7 @@ const statusDisplayNames = {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        `http://localhost:8000/restaurant/addreview?id=${id}`,
+        `${import.meta.env.VITE_API_BASE_URL}/restaurant/addreview?id=${id}`,
         {
           rating: newReview.rating,
           text: newReview.text
@@ -1040,9 +1031,8 @@ const statusDisplayNames = {
 
       toast.success("Review submitted successfully!");
       setNewReview({ rating: 0, text: '' });
-
       const updatedRestaurant = await axios.get(
-        `http://localhost:8000/restaurant/getRestaurantById?id=${id}`
+        `${import.meta.env.VITE_API_BASE_URL}/restaurant/getRestaurantById?id=${id}`
       );
       setRestaurant(updatedRestaurant.data);
 
@@ -1072,7 +1062,7 @@ const statusDisplayNames = {
   return (
     <div className='restaurant-details-page'>
       <div className="restaurant-details-header">
-        {/* {!restaurant.isOpen && (
+        {!restaurant.isOpen && (
           <div className="restaurant-unavailable-banner">
             <InfoIcon className="restaurant-unavailable-icon" />
             <span>
@@ -1080,7 +1070,7 @@ const statusDisplayNames = {
               {restaurant.closureReason && ` Reason: ${restaurant.closureReason}`}
             </span>
           </div>
-        )} */}
+        )}
         <button className="restaurant-back-button" onClick={() => navigate(-1)}><ArrowBackIosIcon fontSize="small" /></button>
         <div className="restaurant-search-bar">
           <SearchIcon className="restaurant-search-icon" />
@@ -1233,7 +1223,7 @@ const statusDisplayNames = {
           <span className="restaurant-rating-count">({restaurant.ratingCount} ratings)</span>
         </div>
 
-        {/* <div className="restaurant-status">
+        <div className="restaurant-status">
           {isOpen ? (
             <>
               <span className={`restaurant-status-badge ${isAboutToClose ? 'closing-soon' : 'open'}`}>
@@ -1256,7 +1246,7 @@ const statusDisplayNames = {
               </span>
             </>
           )}
-        </div> */}
+        </div>
         {deliveryMode === 'delivery' ? (
           <div className="restaurant-delivery-info">
             <span><ScheduleIcon fontSize="small" /> {restaurant.deliveryTime}</span>
@@ -1589,7 +1579,7 @@ const statusDisplayNames = {
                   >
                     PROCEED TO BOOKING
                   </button>
-                )}          
+                )}
               </div>
             </div>
           </div>

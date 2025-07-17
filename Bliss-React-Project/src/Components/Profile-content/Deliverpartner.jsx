@@ -67,7 +67,7 @@ const DeliveryPartner = () => {
 
     const fetchPartner = async () => {
       try {
-        const res = await axios.get('http://localhost:8000/deliverypartner/deliveryboy', {
+        const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/deliverypartner/deliveryboy`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.data.data) {
@@ -100,7 +100,7 @@ const DeliveryPartner = () => {
 
     const fetchAllPartners = async () => {
       try {
-        const res = await axios.get('http://localhost:8000/deliverypartner/getAllpartners', {
+        const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/deliverypartner/getAllpartners`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setAllPartners(res.data.data || []);
@@ -132,14 +132,13 @@ const DeliveryPartner = () => {
 
     try {
       const [partnerOrdersRes, availableOrdersRes] = await Promise.all([
-        axios.get('http://localhost:8000/deliverypartner/deliveryorder', {
+        axios.get(`${import.meta.env.VITE_API_BASE_URL}/deliverypartner/deliveryorder`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
-        axios.get('http://localhost:8000/deliverypartner/availableorders', {
+        axios.get(`${import.meta.env.VITE_API_BASE_URL}/deliverypartner/availableorders`, {
           headers: { Authorization: `Bearer ${token}` }
         })
       ]);
-
       const processedAcceptedOrders = (partnerOrdersRes.data.data || []).map(order => {
         const processed = {
           ...order,
@@ -198,11 +197,11 @@ const DeliveryPartner = () => {
         }
       };
       const endpoints = {
-        accept: 'http://localhost:8000/deliverypartner/acceptorder',
-        reject: 'http://localhost:8000/deliverypartner/rejectorder',
-        pickup: 'http://localhost:8000/deliverypartner/pickuporder',
-        arrived: 'http://localhost:8000/deliverypartner/arrivedorder',
-        deliver: 'http://localhost:8000/deliverypartner/deliverorder'
+        accept: `${import.meta.env.VITE_API_BASE_URL}/deliverypartner/acceptorder`,
+        reject: `${import.meta.env.VITE_API_BASE_URL}/deliverypartner/rejectorder`,
+        pickup: `${import.meta.env.VITE_API_BASE_URL}/deliverypartner/pickuporder`,
+        arrived: `${import.meta.env.VITE_API_BASE_URL}/deliverypartner/arrivedorder`,
+        deliver: `${import.meta.env.VITE_API_BASE_URL}/deliverypartner/deliverorder`
       };
 
 
@@ -243,7 +242,7 @@ const DeliveryPartner = () => {
 
       if (response.data.success) {
         await Promise.all([
-          axios.get('http://localhost:8000/deliverypartner/deliveryboy', {
+          axios.get(`${import.meta.env.VITE_API_BASE_URL}/deliverypartner/deliveryboy`, {
             headers: { Authorization: `Bearer ${token}` }
           }).then(res => setPartner(res.data.data)),
           refreshOrders()
@@ -374,7 +373,6 @@ const DeliveryPartner = () => {
                       <p>Total: ₹{order.totalAmount || 'N/A'}</p>
                     </div>
                     <div className="button-group">
-                      {/* Show Reject button for assigned/picked_up/arrived statuses */}
                       {['assigned', 'out_for_delivery', 'picked_up', 'arrived'].includes(currentStatus) && (
                         <button
                           onClick={() => handleOrderAction('reject', order._id)}
@@ -383,8 +381,6 @@ const DeliveryPartner = () => {
                           Reject Order
                         </button>
                       )}
-
-                      {/* Show Pick Up button when order is assigned/out_for_delivery */}
                       {['assigned', 'out_for_delivery'].includes(currentStatus) && (
                         <button
                           onClick={() => handleOrderAction('pickup', order._id)}
@@ -393,8 +389,6 @@ const DeliveryPartner = () => {
                           Pick Up Order
                         </button>
                       )}
-
-                      {/* Show Arrived button when order is picked_up */}
                       {currentStatus === 'picked_up' && (
                         <button
                           onClick={() => handleOrderAction('arrived', order._id)}
@@ -403,8 +397,6 @@ const DeliveryPartner = () => {
                           Mark as Arrived
                         </button>
                       )}
-
-                      {/* Show Deliver button when order is arrived */}
                       {currentStatus === 'arrived' && (
                         <button
                           onClick={() => handleOrderAction('deliver', order._id)}
@@ -414,7 +406,6 @@ const DeliveryPartner = () => {
                         </button>
                       )}
 
-                      {/* Show delivery completion info */}
                       {currentStatus === 'delivered' && (
                         <div className="delivery-complete">
                           <span className="status-badge delivered">

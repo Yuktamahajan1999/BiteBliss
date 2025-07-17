@@ -24,7 +24,6 @@ const Profile = () => {
         const fetchApprovalStatus = async () => {
             const user = JSON.parse(localStorage.getItem('user'));
             if (!user || user.role !== 'restaurantowner') {
-                // Don't call the API if not restaurantowner
                 return;
             }
             try {
@@ -33,7 +32,7 @@ const Profile = () => {
                     console.log('No token found');
                     return;
                 }
-                const res = await axios.get('http://localhost:8000/partnerapp/getApproveApp', {
+                const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/partnerapp/getApproveApp`, {
                     headers: {
                         Authorization: `Bearer ${token}`,
                         'Content-Type': 'application/json'

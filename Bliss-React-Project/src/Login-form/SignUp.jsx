@@ -41,13 +41,17 @@ const SignUp = () => {
     }
 
     try {
-      const response = await axios.post("http://localhost:8000/user/register", {
-        name: formData.name,
-        email: formData.email,
-        password: formData.password,
-        phoneNumber: formData.mobile,
-        role: formData.role
-      });
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_BASE_URL}/user/register`,
+        {
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          phoneNumber: formData.mobile,
+          role: formData.role
+        }
+      );
+
 
       const { token, user } = response.data;
 

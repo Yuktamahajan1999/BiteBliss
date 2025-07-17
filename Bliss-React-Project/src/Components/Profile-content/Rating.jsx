@@ -33,13 +33,13 @@ const Rating = () => {
       };
 
       try {
-        const ratingsRes = await axios.get(`http://localhost:8000/rating/getRating`, config);
+       const ratingsRes = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/rating/getRating`, config);
         const ratings = ratingsRes.data?.data || [];
         const count = ratings.length;
         setRatingCount(count);
 
         try {
-          const pointsRes = await axios.get(`http://localhost:8000/rewards/userpoints`, config);
+          const pointsRes = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/rewards/userpoints`, config);
           const rewardGiven = pointsRes.data?.ratingProgress?.rewarded || false;
 
           if (count === 2 && !rewardGiven) {

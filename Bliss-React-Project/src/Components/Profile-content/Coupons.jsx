@@ -27,7 +27,7 @@ const Coupons = ({ subtotal = 0 }) => {
   useEffect(() => {
     const fetchCoupons = async () => {
       try {
-        const { data } = await axios.get('http://localhost:8000/coupons/allCoupons');
+        const { data } = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/coupons/allCoupons`);
         setCoupons(data);
       } catch {
         setCoupons([]);
@@ -39,7 +39,7 @@ const Coupons = ({ subtotal = 0 }) => {
       const token = localStorage.getItem('token');
       try {
         const { data } = await axios.get(
-          `http://localhost:8000/coupons/getCoupons`,
+          `${import.meta.env.VITE_API_BASE_URL}/coupons/getCoupons`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -47,7 +47,7 @@ const Coupons = ({ subtotal = 0 }) => {
           }
         );
         if (data.length > 0) {
-          setAppliedCoupon(data[0].code); 
+          setAppliedCoupon(data[0].code);
         }
       } catch {
         setAppliedCoupon('');
@@ -61,7 +61,7 @@ const Coupons = ({ subtotal = 0 }) => {
     const token = localStorage.getItem('token');
     try {
       await axios.post(
-        'http://localhost:8000/coupons/applyCoupon',
+        `${import.meta.env.VITE_API_BASE_URL}/coupons/applyCoupon`,
         { userId, code, orderAmount: subtotal },
         {
           headers: {

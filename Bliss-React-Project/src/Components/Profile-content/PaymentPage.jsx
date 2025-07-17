@@ -135,7 +135,7 @@ const PaymentPage = () => {
     try {
       setLoading(true);
       const response = await axios.post(
-        'http://localhost:8000/payment',
+        `${import.meta.env.VITE_API_BASE_URL}/payment`,
         payload,
         {
           headers: {
@@ -162,9 +162,8 @@ const PaymentPage = () => {
   const handleOrderPayment = async (trimmedCardDetails) => {
     console.log('🟢 Starting order payment process...');
 
-    // Validate required fields based on order type
     const orderType = location.state?.orderType || ORDER_TYPES.NORMAL;
-    
+
     if (orderType === ORDER_TYPES.NORMAL && !location?.state?.address) {
       toast.error('Delivery address is required');
       return;
@@ -180,12 +179,11 @@ const PaymentPage = () => {
       return;
     }
 
-    // Prepare the base payload
     let payload = {
       userId: user.id,
       method: selectedMethod,
       type: 'order',
-      orderType, // Add order type to payload
+      orderType,
       amount: Number(amount),
       transactionId,
       restaurantId: location.state.restaurant._id,
@@ -203,10 +201,9 @@ const PaymentPage = () => {
       rewardPointsUsed: location.state.rewardPointsUsed || 0
     };
 
-    // Add type-specific details
     if (orderType === ORDER_TYPES.NORMAL) {
       payload.address = location.state.address._id || location.state.address;
-    } 
+    }
     else if (orderType === ORDER_TYPES.TRAIN) {
       payload.trainDetails = location.state.trainDetails;
     }
@@ -229,11 +226,10 @@ const PaymentPage = () => {
     try {
       setLoading(true);
       const response = await axios.post(
-        'http://localhost:8000/payment',
+        `${import.meta.env.VITE_API_BASE_URL}/payment`,
         payload,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      
       console.log("Backend payment response:", response.data);
 
       if (response.data.success && response.data.order) {
@@ -247,7 +243,7 @@ const PaymentPage = () => {
           delivered: 7,
           cancelled: 0
         };
-        
+
         const orderStatus = (response.data.order.status || "").toLowerCase().trim();
         const updatedOrder = {
           ...response.data.order,
@@ -363,12 +359,12 @@ const PaymentPage = () => {
       <div className="payment-container">
         <div className="payment-header">
           <h2>
-            {paymentType === 'donation' ? 'Donation Payment' : 
-             location.state?.orderType === ORDER_TYPES.TRAIN ? 'Train Order Payment' :
-             location.state?.orderType === ORDER_TYPES.GROUP ? 'Group Order Payment' : 'Order Payment'}
+            {paymentType === 'donation' ? 'Donation Payment' :
+              location.state?.orderType === ORDER_TYPES.TRAIN ? 'Train Order Payment' :
+                location.state?.orderType === ORDER_TYPES.GROUP ? 'Group Order Payment' : 'Order Payment'}
           </h2>
           <p>Total Amount: ₹{amount}</p>
-          
+
           {location.state?.orderType === ORDER_TYPES.TRAIN && (
             <div className="order-type-details">
               <p><FaTrain /> Train Order Details:</p>
@@ -377,7 +373,7 @@ const PaymentPage = () => {
               <p>Station: {location.state.trainDetails?.station}</p>
             </div>
           )}
-          
+
           {location.state?.orderType === ORDER_TYPES.GROUP && (
             <div className="order-type-details">
               <p>🍽️ Group Order Details:</p>

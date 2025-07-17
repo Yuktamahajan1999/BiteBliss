@@ -14,7 +14,7 @@ const ManageRecommendations = () => {
     const fetchData = async () => {
       try {
         const headers = { Authorization: `Bearer ${token}` };
-        const myRes = await axios.get("http://localhost:8000/recommend", { headers });
+        const myRes = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/recommend`, { headers });
         const formattedMyRecs = myRes.data.map(rec => ({
           id: rec._id,
           restaurantId: rec.restaurantId?._id || rec.restaurantId,
@@ -26,7 +26,7 @@ const ManageRecommendations = () => {
           liked: rec.liked,
           isRecommendation: true,
         }));
-        const freqRes = await axios.get("http://localhost:8000/recommend/frequent", { headers });
+        const freqRes = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/recommend/frequent`, { headers });
         const formattedFreq = freqRes.data.map(item => ({
           id: item.id,
           restaurantId: item.id,
@@ -56,7 +56,7 @@ const ManageRecommendations = () => {
   const handleDelete = async (id, isRecommendation) => {
     if (isRecommendation) {
       try {
-        await axios.delete(`http://localhost:8000/recommend/deleteRecommend?id=${id}`, {
+        await axios.delete(`${import.meta.env.VITE_API_BASE_URL}/recommend/deleteRecommend?id=${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
       } catch (error) {
@@ -73,7 +73,7 @@ const ManageRecommendations = () => {
     try {
       if (rec.isRecommendation) {
         await axios.put(
-          `http://localhost:8000/recommend/updateRecommend?id=${rec.id}`,
+          `${import.meta.env.VITE_API_BASE_URL}/recommend/updateRecommend?id=${rec.id}`,
           { liked: updatedLiked },
           { headers: { Authorization: `Bearer ${token}` } }
         );
@@ -83,7 +83,7 @@ const ManageRecommendations = () => {
         );
       } else {
         const response = await axios.post(
-          `http://localhost:8000/recommend/create`,
+          `${import.meta.env.VITE_API_BASE_URL}/recommend/create`,
           { restaurantId: rec.restaurantId, rating: 5, liked: true },
           { headers: { Authorization: `Bearer ${token}` } }
         );
@@ -94,11 +94,11 @@ const ManageRecommendations = () => {
           prev.map(r =>
             r.id === rec.id
               ? {
-                  ...r,
-                  id: newRec._id,
-                  liked: true,
-                  isRecommendation: true,
-                }
+                ...r,
+                id: newRec._id,
+                liked: true,
+                isRecommendation: true,
+              }
               : r
           )
         );

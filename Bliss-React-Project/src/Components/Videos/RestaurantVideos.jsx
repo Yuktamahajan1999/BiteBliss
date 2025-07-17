@@ -28,12 +28,13 @@ const RestaurantVideos = () => {
   const fetchVideos = async () => {
     try {
       setLoading(true);
-      const res = await axios.get('http://localhost:8000/videos/restaurant', {
-        headers: user ? { Authorization: `Bearer ${user.token}` } : {},
-        params: {
-          uploadedByType: "Restaurant" 
+      const res = await axios.get(
+        `${import.meta.env.VITE_API_BASE_URL}/videos/restaurant`,
+        {
+          headers: user ? { Authorization: `Bearer ${user.token}` } : {},
+          params: { uploadedByType: "Restaurant" }
         }
-      });
+      );
       setVideos(res.data);
       setErrorMsg('');
     } catch (err) {
@@ -72,9 +73,8 @@ const RestaurantVideos = () => {
       formData.append('description', videoDesc);
       formData.append('uploadedByType', 'Restaurant');
       formData.append('uploadedBy', user.id);
-
       const response = await axios.post(
-        'http://localhost:8000/videos/restaurant/uploadvideo',
+        `${import.meta.env.VITE_API_BASE_URL}/videos/restaurant/uploadvideo`,
         formData,
         {
           headers: {
@@ -104,9 +104,12 @@ const RestaurantVideos = () => {
 
     try {
       setLoading(true);
-      await axios.delete(`http://localhost:8000/videos/restaurant/deletevideo?id=${videoId}`, {
-        headers: { Authorization: `Bearer ${user.token}` }
-      });
+      await axios.delete(
+        `${import.meta.env.VITE_API_BASE_URL}/videos/restaurant/deletevideo?id=${videoId}`,
+        {
+          headers: { Authorization: `Bearer ${user.token}` }
+        }
+      );
       fetchVideos();
       setErrorMsg('');
     } catch (err) {
@@ -150,7 +153,7 @@ const RestaurantVideos = () => {
       setLoading(true);
 
       const response = await axios.post(
-        `http://localhost:8000/videos/upvote?videoId=${videoId}`,
+        `${import.meta.env.VITE_API_BASE_URL}/videos/upvote?videoId=${videoId}`,
         {},
         {
           headers: {
@@ -217,15 +220,19 @@ const RestaurantVideos = () => {
 
     try {
       setLoading(true);
-      await axios.post('http://localhost:8000/videos/comment', {
-        videoId,
-        text,
-        userId: user.id,
-        userName: user.name || "User",
-        userType: user.role || "User"
-      }, {
-        headers: { Authorization: `Bearer ${user.token}` }
-      });
+      await axios.post(
+        `${import.meta.env.VITE_API_BASE_URL}/videos/comment`,
+        {
+          videoId,
+          text,
+          userId: user.id,
+          userName: user.name || "User",
+          userType: user.role || "User"
+        },
+        {
+          headers: { Authorization: `Bearer ${user.token}` }
+        }
+      );
       setCommentInputs((prev) => ({ ...prev, [videoId]: '' }));
       fetchVideos();
     } catch (err) {
@@ -246,16 +253,20 @@ const RestaurantVideos = () => {
 
     try {
       setLoading(true);
-      await axios.post('http://localhost:8000/videos/addreply', {
-        videoId,
-        commentId,
-        text: replyText,
-        userId: user.id,
-        userName: user.name || "User",
-        userType: user.role || "User"
-      }, {
-        headers: { Authorization: `Bearer ${user.token}` }
-      });
+      await axios.post(
+        `${import.meta.env.VITE_API_BASE_URL}/videos/addreply`,
+        {
+          videoId,
+          commentId,
+          text: replyText,
+          userId: user.id,
+          userName: user.name || "User",
+          userType: user.role || "User"
+        },
+        {
+          headers: { Authorization: `Bearer ${user.token}` }
+        }
+      );
 
       setReplyInputs((prev) => ({ ...prev, [commentId]: '' }));
       setReplyingTo(null);
@@ -290,12 +301,16 @@ const RestaurantVideos = () => {
         formData.append('video', selectedFile);
       }
 
-      await axios.put(`http://localhost:8000/videos/restaurant/updatevideo?id=${videoId}`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          Authorization: `Bearer ${user.token}`
+      await axios.put(
+        `${import.meta.env.VITE_API_BASE_URL}/videos/restaurant/updatevideo?id=${videoId}`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            Authorization: `Bearer ${user.token}`
+          }
         }
-      });
+      );
 
 
       setEditingVideoId(null);

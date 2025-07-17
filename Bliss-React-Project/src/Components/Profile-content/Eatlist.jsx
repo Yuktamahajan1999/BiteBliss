@@ -26,11 +26,10 @@ const Eatlist = () => {
           return;
         }
 
-        const res = await axios.get('http://localhost:8000/wishlist', {
+        const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/wishlist`, {
           headers: { Authorization: `Bearer ${token}` },
-          withCredentials: true 
+          withCredentials: true
         });
-        
         if (res.data && res.data.wishlist) {
           setEatlistRestaurants(res.data.wishlist);
         } else {
@@ -41,7 +40,7 @@ const Eatlist = () => {
       }
     } catch (err) {
       console.error('Failed to load eatlist', err);
-      
+
       if (err.response?.status === 403 || err.response?.status === 401) {
         toast.error('Please log in to view your Eatlist');
       } else {
@@ -66,8 +65,7 @@ const Eatlist = () => {
           toast.error('Please log in to modify your Eatlist');
           return;
         }
-
-        await axios.delete('http://localhost:8000/wishlist/removefromwishlist', {
+        await axios.delete(`${import.meta.env.VITE_API_BASE_URL}/wishlist/removefromwishlist`, {
           data: { restaurantId },
           headers: { Authorization: `Bearer ${token}` },
           withCredentials: true

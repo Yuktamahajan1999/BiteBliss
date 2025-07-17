@@ -35,7 +35,7 @@ const Notifications = () => {
                 email: notifications.promos,
                 push: notifications.social
             };
-            const res = await axios.post('http://localhost:8000/notification', notificationPreferences);
+            const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/notification`, notificationPreferences);
             if (res.status === 201 || res.status === 200) {
                 toast.success("Preferences saved!");
             } else {

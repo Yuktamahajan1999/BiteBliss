@@ -30,7 +30,6 @@ function ChefForm() {
     const [loadingBookings, setLoadingBookings] = useState(false);
     const [isApproved, setIsApproved] = useState(null);
     const [chefStatus, setChefStatus] = useState(null);
-    const [profileData, setProfileData] = useState(null);
 
     const cuisineOptions = [
         'Butter Chicken', 'Masala Dosa', 'Chilli Garlic Noodles',
@@ -122,12 +121,10 @@ function ChefForm() {
                 setLoading(false);
                 return;
             }
-
-            const response = await axios.get('http://localhost:8000/chefform/getmychefProfile', {
+            const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/chefform/getmychefProfile`, {
                 headers: { Authorization: `Bearer ${token}` },
                 timeout: 10000
             });
-
             if (response.data) {
                 const profile = response.data;
                 setChefId(profile._id);
@@ -190,8 +187,8 @@ function ChefForm() {
         try {
             const token = localStorage.getItem('token');
             const url = chefId
-                ? `http://localhost:8000/chefform/updateChefprofile?id=${chefId}`
-                : 'http://localhost:8000/chefform';
+                ? `${import.meta.env.VITE_API_BASE_URL}/chefform/updateChefprofile?id=${chefId}`
+                : `${import.meta.env.VITE_API_BASE_URL}/chefform`;
             const method = chefId ? 'put' : 'post';
 
             const res = await axios[method](url, payload, {
@@ -221,7 +218,7 @@ function ChefForm() {
 
         try {
             const token = localStorage.getItem('token');
-            await axios.delete(`http://localhost:8000/chefform/deleteChefprofile?id=${chefId}`, {
+            await axios.delete(`${import.meta.env.VITE_API_BASE_URL}/chefform/deleteChefprofile?id=${chefId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
@@ -241,13 +238,13 @@ function ChefForm() {
         setIsEditing(false);
     };
 
-       useEffect(() => {
+    useEffect(() => {
         if (chefId) {
-            getChefBookings(); 
+            getChefBookings();
 
             const interval = setInterval(() => {
                 getChefBookings();
-            }, 30000); 
+            }, 30000);
 
             return () => clearInterval(interval);
         }
@@ -257,10 +254,9 @@ function ChefForm() {
         try {
             const token = localStorage.getItem('token');
             const response = await axios.get(
-                'http://localhost:8000/chefbook/getBookingbyChef',
+                `${import.meta.env.VITE_API_BASE_URL}/chefbook/getBookingbyChef`,
                 { headers: { Authorization: `Bearer ${token}` } }
             );
-
             if (response.data && Array.isArray(response.data)) {
                 setBookings(response.data);
             } else {
@@ -286,7 +282,7 @@ function ChefForm() {
         try {
             const token = localStorage.getItem('token');
             await axios.put(
-                `http://localhost:8000/chefbook/acceptbooking?id=${bookingId}`,
+                `${import.meta.env.VITE_API_BASE_URL}/chefbook/acceptbooking?id=${bookingId}`,
                 {},
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -301,11 +297,9 @@ function ChefForm() {
         try {
             const token = localStorage.getItem('token');
             await axios.put(
-                `http://localhost:8000/chefbook/cancelbooking?id=${bookingId}`,
+                `${import.meta.env.VITE_API_BASE_URL}/chefbook/cancelbooking?id=${bookingId}`,
                 {},
-                {
-                    headers: { Authorization: `Bearer ${token}` }
-                }
+                { headers: { Authorization: `Bearer ${token}` } }
             );
             toast.success('Booking cancelled');
             getChefBookings(chefId);
@@ -318,7 +312,7 @@ function ChefForm() {
         try {
             const token = localStorage.getItem('token');
             await axios.put(
-                `http://localhost:8000/chefbook/arrived?id=${bookingId}`,
+                `${import.meta.env.VITE_API_BASE_URL}/chefbook/arrived?id=${bookingId}`,
                 {},
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -333,7 +327,7 @@ function ChefForm() {
         try {
             const token = localStorage.getItem('token');
             await axios.put(
-                `http://localhost:8000/chefbook/completechefbooking?id=${bookingId}`,
+                `${import.meta.env.VITE_API_BASE_URL}/chefbook/completechefbooking?id=${bookingId}`,
                 {},
                 { headers: { Authorization: `Bearer ${token}` } }
             );

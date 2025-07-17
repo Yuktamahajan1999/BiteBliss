@@ -6,7 +6,7 @@ import {
   FiCreditCard, FiTruck, FiX, FiSend
 } from 'react-icons/fi';
 import { toast } from 'react-toastify';
-import { getSocket, disconnectSocket } from "../socket";
+import { getSocket} from "../socket";
 
 function HelpPage() {
   const [activeFaq, setActiveFaq] = useState(null);

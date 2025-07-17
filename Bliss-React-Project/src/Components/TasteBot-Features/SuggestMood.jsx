@@ -20,7 +20,7 @@ const SuggestMood = () => {
     setError('');
     setSelectedMood(null);
     try {
-      const res = await axios.get('http://localhost:8000/suggestmood/getAllMoodFood');
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/suggestmood/getAllMoodFood`);
       if (res.data.success && res.data.data?.length > 0) {
         setMoods(res.data.data);
       } else {
@@ -35,7 +35,6 @@ const SuggestMood = () => {
     }
   };
 
-  // Search moods from backend, fallback to static
   const handleSearch = async () => {
     if (!searchInput.trim()) {
       fetchAllMoods();
@@ -45,7 +44,7 @@ const SuggestMood = () => {
     setError('');
     setSelectedMood(null);
     try {
-      const res = await axios.get('http://localhost:8000/suggestmood/searchmoodfood', {
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/suggestmood/searchmoodfood`, {
         params: { mood: searchInput }
       });
       if (res.data.success && res.data.data?.length > 0) {

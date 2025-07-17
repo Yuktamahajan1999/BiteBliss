@@ -37,7 +37,9 @@ const QuickFixMeals = () => {
     setError('');
     setMessage('');
     try {
-      const res = await axios.get('http://localhost:8000/fixmeal/searchquickfixmeal', { params: { query: search } });
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/fixmeal/searchquickfixmeal`, {
+        params: { query: search }
+      });
       if (res.data.success) {
         setMeals(res.data.data);
         setMessage(`Source: ${res.data.source}`);

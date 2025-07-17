@@ -47,44 +47,42 @@ const EmployeesPage = () => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
- const handleSubmit = async (e) => {
-  e.preventDefault();
-  
-  const submitData = {
-    ...formData,
-    position: activeForm
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    const submitData = {
+      ...formData,
+      position: activeForm
+    };
+
+    try {
+      const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/application`, submitData, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      toast.success(`Application submitted!`);
+      setActiveForm(null);
+      setFormData({
+        name: '',
+        email: '',
+        phone: '',
+        position: '',
+        experience: ''
+      });
+
+    } catch (err) {
+      const backendMessage = err.response?.data?.errors?.[0]?.msg || err.message;
+      toast.error(backendMessage || 'Submission failed');
+      console.error('Full error:', err.response?.data || err);
+    }
   };
-
-  try {
-    const res = await axios.post('http://localhost:8000/application', submitData, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    toast.success(`Application submitted!`);
-    setActiveForm(null);
-    setFormData({
-      name: '',
-      email: '',
-      phone: '',
-      position: '',
-      experience: ''
-    });
-
-  } catch (err) {
-    const backendMessage = err.response?.data?.errors?.[0]?.msg || err.message;
-    toast.error(backendMessage || 'Submission failed');
-    console.error('Full error:', err.response?.data || err);
-  }
-};
   const fetchApplications = async () => {
     try {
-      const res = await fetch("http://localhost:8000/application/all", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/application/all`, {
+        headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
       setApplications(data);
@@ -94,7 +92,7 @@ const EmployeesPage = () => {
   };
 
   const handleStatusChange = async (id, newStatus) => {
-    await fetch(`http://localhost:8000/application/statusApp?id=${id}`, {
+    await fetch(`${import.meta.env.VITE_API_BASE_URL}/application/statusApp?id=${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -108,7 +106,7 @@ const EmployeesPage = () => {
   useEffect(() => {
     const getTestimonials = async () => {
       try {
-        const res = await axios.get('http://localhost:8000/testimonial/getAlltestimonial?page=employees');
+        const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/testimonial/getAlltestimonial?page=employees`);
         setTestimonials(res.data.data);
       } catch (err) {
         console.error("Error fetching testimonials:", err);

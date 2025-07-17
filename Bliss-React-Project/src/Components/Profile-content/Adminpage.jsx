@@ -28,7 +28,7 @@ const AdminPage = () => {
     useEffect(() => {
         const fetchChatUsers = async () => {
             try {
-                const res = await axios.get("http://localhost:8000/chat/chatusers");
+                const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/chat/chatusers`);
                 setChatUsers(res.data);
                 if (!currentChatUser && res.data.length > 0) {
                     setCurrentChatUser(res.data[0]._id);
@@ -113,11 +113,11 @@ const AdminPage = () => {
         const fetchData = async () => {
             try {
                 const [appsRes, partnerRes] = await Promise.all([
-                    axios.get('http://localhost:8000/application/getApp', {
+                    axios.get(`${import.meta.env.VITE_API_BASE_URL}/application/getApp`, {
                         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
                         params: { refresh: false }
                     }),
-                    axios.get('http://localhost:8000/partnerapp/getpartnerapp', {
+                    axios.get(`${import.meta.env.VITE_API_BASE_URL}/partnerapp/getpartnerapp`, {
                         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
                     })
                 ]);
@@ -137,7 +137,7 @@ const AdminPage = () => {
         const fetchMessages = async () => {
             try {
                 console.log('Fetching messages for user:', currentChatUser);
-                const res = await axios.get(`http://localhost:8000/chat/chatmessage?userId=${currentChatUser}`);
+                const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/chat/chatmessage?userId=${currentChatUser}`);
                 console.log('Messages received:', res.data);
                 const formattedMessages = res.data.map(msg => ({
                     ...msg,
@@ -189,11 +189,10 @@ const AdminPage = () => {
     const handleStatusChange = async (id, newStatus) => {
         try {
             const response = await axios.put(
-                `http://localhost:8000/application/statusApp?id=${id}`,
+                `${import.meta.env.VITE_API_BASE_URL}/application/statusApp?id=${id}`,
                 { status: newStatus },
                 { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
             );
-
             const updatedApp = response.data.application;
             setApplications(prev => prev.map(app =>
                 app._id === id ? { ...app, status: newStatus } : app
@@ -202,14 +201,14 @@ const AdminPage = () => {
             if (newStatus === 'accepted') {
                 if (updatedApp.position === 'Chef') {
                     await axios.post(
-                        'http://localhost:8000/chefform',
+                        `${import.meta.env.VITE_API_BASE_URL}/chefform`,
                         { applicationId: id, userId: updatedApp.user },
                         { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
                     );
                 }
                 else if (updatedApp.position === 'Delivery Partner') {
                     await axios.post(
-                        'http://localhost:8000/deliverypartner/createformapplication',
+                        `${import.meta.env.VITE_API_BASE_URL}/deliverypartner/createformapplication`,
                         { applicationId: id, userId: updatedApp.user },
                         { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
                     );
@@ -225,7 +224,7 @@ const AdminPage = () => {
     const handlePartnerStatusChange = async (id, newStatus) => {
         try {
             await axios.put(
-                `http://localhost:8000/partnerapp/updatepartnerApp?id=${id}`,
+                `${import.meta.env.VITE_API_BASE_URL}/partnerapp/updatepartnerApp?id=${id}`,
                 { status: newStatus },
                 { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
             );
@@ -241,7 +240,7 @@ const AdminPage = () => {
 
     const handleDelete = async (id) => {
         try {
-            await axios.delete(`http://localhost:8000/application/deleteApp?id=${id}`, {
+            await axios.delete(`${import.meta.env.VITE_API_BASE_URL}/application/deleteApp?id=${id}`, {
                 headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
             });
             setApplications(prev => prev.filter(app => app._id !== id));
@@ -275,7 +274,6 @@ const AdminPage = () => {
                 <div className="admin-chat-messages" key={currentChatUser}>
                     {currentMessages.length > 0 ? (
                         currentMessages.map((msg) => {
-                            // Debug each message
                             console.log('Rendering message:', msg);
 
                             const senderName = msg.sender === 'admin'

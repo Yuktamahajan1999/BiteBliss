@@ -58,7 +58,6 @@ function FoodOrderPage() {
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const location = useLocation();
-  const [loading, setLoading] = useState(true);
   const [order, setOrder] = useState(null);
   const [cart, setCart] = useState(
     location.state?.cart ||

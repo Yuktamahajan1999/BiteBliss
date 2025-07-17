@@ -81,198 +81,196 @@ const RestaurantInfo = () => {
       return nowMinutes >= openMinutes && nowMinutes < closeMinutes;
     }
   }
-useEffect(() => {
-  const getData = async () => {
-    try {
-      const restaurantRes = await axios.get(
-        `http://localhost:8000/restaurant/getRestaurantById?id=${id}`
-      );
-      let data = null;
-      if (restaurantRes.data) {
-        data = restaurantRes.data;
-        setRestaurant(data);
-        setServiceAvailability({
-          dining: data.diningAvailability,
-          delivery: data.deliveryAvailable,
-        });
-        setPetAllowed(data.petAllow);
-        setIsOpenNow(isRestaurantOpen(data.openHours));
-      } else {
-        setRestaurant(null);
-        setError('Restaurant not found!');
-        return;
-      }
+  useEffect(() => {
+    const getData = async () => {
+      try {
+        const restaurantRes = await axios.get(
+          `${import.meta.env.VITE_API_BASE_URL}/restaurant/getRestaurantById?id=${id}`
+        );
+        let data = null;
+        if (restaurantRes.data) {
+          data = restaurantRes.data;
+          setRestaurant(data);
+          setServiceAvailability({
+            dining: data.diningAvailability,
+            delivery: data.deliveryAvailable,
+          });
+          setPetAllowed(data.petAllow);
+          setIsOpenNow(isRestaurantOpen(data.openHours));
+        } else {
+          setRestaurant(null);
+          setError('Restaurant not found!');
+          return;
+        }
 
-      let isHiddenForUser = false;
-      if (token) {
-        const user = JSON.parse(localStorage.getItem('user'));
-        
-        if (user?.role === 'user') {
-          try {
-            const wishlistRes = await axios.get("http://localhost:8000/wishlist", {
-              headers: { Authorization: `Bearer ${token}` }
-            }).catch(err => {
-              if (err.response?.status === 403 || err.response?.status === 401) {
-                return { data: { wishlist: [] } };
-              }
-              throw err;
-            });
-            const wishlistIds = wishlistRes.data.wishlist.map(
-              item => item.restaurantId || item._id || item.id
-            );
-            setWishList(wishlistIds);
-            setIsWished(wishlistIds.includes(id));
+        let isHiddenForUser = false;
+        if (token) {
+          const user = JSON.parse(localStorage.getItem('user'));
 
-            const hiddenRes = await axios.get("http://localhost:8000/restauranthidden/gethidden", {
-              headers: { Authorization: `Bearer ${token}` }
-            }).catch(err => {
-              if (err.response?.status === 403 || err.response?.status === 401) {
-                return { data: { hiddenRestaurants: [] } };
-              }
-              throw err;
-            });
-            isHiddenForUser = (hiddenRes.data.hiddenRestaurants || []).some(
-              rest => rest._id === id
-            );
-          } catch (err) {
-            console.log(err);
+          if (user?.role === 'user') {
+            try {
+              const wishlistRes = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/wishlist`, {
+                headers: { Authorization: `Bearer ${token}` }
+              }).catch(err => {
+                if (err.response?.status === 403 || err.response?.status === 401) {
+                  return { data: { wishlist: [] } };
+                }
+                throw err;
+              });
+              const wishlistIds = wishlistRes.data.wishlist.map(
+                item => item.restaurantId || item._id || item.id
+              );
+              setWishList(wishlistIds);
+              setIsWished(wishlistIds.includes(id));
+
+              const hiddenRes = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/restauranthidden/gethidden`, {
+                headers: { Authorization: `Bearer ${token}` }
+              }).catch(err => {
+                if (err.response?.status === 403 || err.response?.status === 401) {
+                  return { data: { hiddenRestaurants: [] } };
+                }
+                throw err;
+              });
+              isHiddenForUser = (hiddenRes.data.hiddenRestaurants || []).some(
+                rest => rest._id === id
+              );
+            } catch (err) {
+              console.log(err);
+            }
           }
         }
+        setHideRestaurant(isHiddenForUser);
+      } catch (err) {
+        console.error(err);
+        setRestaurant(null);
+        setError('Failed to fetch restaurant details. Please try again later.');
+      } finally {
+        setLoading(false);
       }
-      setHideRestaurant(isHiddenForUser);
-    } catch (err) {
-      console.error(err);
-      setRestaurant(null);
-      setError('Failed to fetch restaurant details. Please try again later.');
-    } finally {
-      setLoading(false);
+    };
+
+    getData();
+  }, [id, token]);
+
+  const toggleWishlist = async () => {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!token) {
+      toast.warn("Please sign in to save favorites", {
+        position: "top-center",
+        autoClose: 3000,
+      });
+      return;
+    }
+
+    if (user?.role !== 'user') {
+      toast.info("Only regular users can save favorites", {
+        position: "top-center",
+        autoClose: 3000,
+      });
+      return;
+    }
+
+    try {
+      const config = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      };
+
+      if (isWished) {
+        await axios.delete(`${import.meta.env.VITE_API_BASE_URL}/wishlist/removefromwishlist`, {
+          ...config,
+          data: { restaurantId: id }
+        });
+        setIsWished(false);
+        setWishList(prev => prev.filter(itemId => itemId !== id));
+        toast.success("Removed from favorites", {
+          position: "top-center",
+          autoClose: 2000,
+        });
+      } else {
+        await axios.post(
+          `${import.meta.env.VITE_API_BASE_URL}/wishlist/addtowishlist`,
+          { restaurantId: id },
+          config
+        );
+        setIsWished(true);
+        setWishList(prev => [...prev, id]);
+        toast.success("Added to favorites!", {
+          position: "top-center",
+          autoClose: 2000,
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to update favorites. Please try again", {
+        position: "top-center",
+        autoClose: 3000,
+      });
     }
   };
 
-  getData();
-}, [id, token]);
-
-const toggleWishlist = async () => {
-  const user = JSON.parse(localStorage.getItem('user'));
-  if (!token) {
-    toast.warn("Please sign in to save favorites", {
-      position: "top-center",
-      autoClose: 3000,
-    });
-    return;
-  }
-
-  if (user?.role !== 'user') {
-    toast.info("Only regular users can save favorites", {
-      position: "top-center",
-      autoClose: 3000,
-    });
-    return;
-  }
-
-  try {
-    const config = {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    };
-
-    if (isWished) {
-      await axios.delete("http://localhost:8000/wishlist/removefromwishlist", {
-        ...config,
-        data: { restaurantId: id }
-      });
-      setIsWished(false);
-      setWishList(prev => prev.filter(itemId => itemId !== id));
-      toast.success("Removed from favorites", {
+  const handleHideRestaurant = async () => {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!token) {
+      toast.warn("Please sign in to hide restaurants", {
         position: "top-center",
-        autoClose: 2000,
+        autoClose: 3000,
       });
-    } else {
+      return;
+    }
+
+    if (user?.role !== 'user') {
+      toast.info("Only regular users can hide restaurants", {
+        position: "top-center",
+        autoClose: 3000,
+      });
+      return;
+    }
+
+    try {
       await axios.post(
-        "http://localhost:8000/wishlist/addtowishlist",
+        `${import.meta.env.VITE_API_BASE_URL}/restauranthidden/hide`,
         { restaurantId: id },
-        config
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-      setIsWished(true);
-      setWishList(prev => [...prev, id]);
-      toast.success("Added to favorites!", {
+      setHideRestaurant(true);
+      toast.success("Restaurant hidden from your view", {
         position: "top-center",
         autoClose: 2000,
+      });
+    } catch (err) {
+      console.error(err);
+      toast.error("Couldn't hide restaurant. Please try again", {
+        position: "top-center",
+        autoClose: 3000,
       });
     }
-  } catch (error) {
-    console.error(error);
-    toast.error("Failed to update favorites. Please try again", {
-      position: "top-center",
-      autoClose: 3000,
-    });
-  }
-};
+  };
 
-const handleHideRestaurant = async () => {
-  const user = JSON.parse(localStorage.getItem('user'));
-  if (!token) {
-    toast.warn("Please sign in to hide restaurants", {
-      position: "top-center",
-      autoClose: 3000,
-    });
-    return;
-  }
+  const handleUnhideRestaurant = async () => {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (user?.role !== 'user') return;
 
-  if (user?.role !== 'user') {
-    toast.info("Only regular users can hide restaurants", {
-      position: "top-center",
-      autoClose: 3000,
-    });
-    return;
-  }
-
-  try {
-    await axios.post(
-      "http://localhost:8000/restauranthidden/hide",
-      { restaurantId: id },
-      {
-        headers: { Authorization: `Bearer ${token}` }
-      }
-    );
-    setHideRestaurant(true);
-    toast.success("Restaurant hidden from your view", {
-      position: "top-center",
-      autoClose: 2000,
-    });
-  } catch (err) {
-    console.error(err);
-    toast.error("Couldn't hide restaurant. Please try again", {
-      position: "top-center",
-      autoClose: 3000,
-    });
-  }
-};
-
-const handleUnhideRestaurant = async () => {
-  const user = JSON.parse(localStorage.getItem('user'));
-  if (user?.role !== 'user') return;
-
-  try {
-    await axios.delete("http://localhost:8000/restauranthidden/unhide", {
-      headers: { Authorization: `Bearer ${token}` },
-      data: { restaurantId: id }
-    });
-    setHideRestaurant(false);
-    toast.success("Restaurant is now visible", {
-      position: "top-center",
-      autoClose: 2000,
-    });
-  } catch (err) {
-    console.error(err);
-    toast.error("Couldn't unhide restaurant. Please try again", {
-      position: "top-center",
-      autoClose: 3000,
-    });
-  }
-};
+    try {
+      await axios.delete(`${import.meta.env.VITE_API_BASE_URL}/restauranthidden/unhide`, {
+        headers: { Authorization: `Bearer ${token}` },
+        data: { restaurantId: id }
+      });
+      setHideRestaurant(false);
+      toast.success("Restaurant is now visible", {
+        position: "top-center",
+        autoClose: 2000,
+      });
+    } catch (err) {
+      console.error(err);
+      toast.error("Couldn't unhide restaurant. Please try again", {
+        position: "top-center",
+        autoClose: 3000,
+      });
+    }
+  };
 
   if (loading) {
     return <div className="restaurant-info-loading">

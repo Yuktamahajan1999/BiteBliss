@@ -19,7 +19,7 @@ const FeedingIndia = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        axios.get("http://localhost:8000/testimonial/getAlltestimonial?page=feeding-india")
+        axios.get(`${import.meta.env.VITE_API_BASE_URL}/testimonial/getAlltestimonial?page=feeding-india`)
             .then(res => {
                 if (res.data.success) {
                     setTestimonials(res.data.data);
@@ -39,7 +39,7 @@ const FeedingIndia = () => {
 
         try {
             setIsSubmitting(true);
-            const paymentRes = await axios.post("http://localhost:8000/payment", {
+            const paymentRes = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/payment`, {
                 method: "google-pay",
                 type: 'donation',
                 amount: amountToSend,
@@ -47,9 +47,7 @@ const FeedingIndia = () => {
                 email: emailToSend,
                 message: donorMessage
             }, {
-                headers: {
-                    Authorization: `Bearer ${localStorage.getItem("token")}`
-                }
+                headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
             });
 
             if (paymentRes.data.success && paymentRes.data.paymentId) {
@@ -59,7 +57,7 @@ const FeedingIndia = () => {
                         name: nameToSend,
                         email: emailToSend,
                         paymentId: paymentRes.data.paymentId,
-                        type: 'donation', 
+                        type: 'donation',
                         isDonation: true
                     }
                 });
@@ -89,7 +87,7 @@ const FeedingIndia = () => {
             return;
         }
 
-        axios.post("http://localhost:8000/volunteer", {
+        axios.post(`${import.meta.env.VITE_API_BASE_URL}/volunteer`, {
             name, email, phone, address, interests: interest
         })
             .then(res => {
@@ -182,7 +180,7 @@ const FeedingIndia = () => {
                     </div>
                     <form className="donate-form" onSubmit={(e) => e.preventDefault()}>
                         <div className="preset-buttons">
-                            {[10, 20, 30, 100, 500 ].map((amt) => (
+                            {[10, 20, 30, 100, 500].map((amt) => (
                                 <button
                                     key={amt}
                                     type="button"

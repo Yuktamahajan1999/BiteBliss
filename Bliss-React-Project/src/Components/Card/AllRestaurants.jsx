@@ -22,7 +22,7 @@ const AllRestaurantsByFood = () => {
     const getRestaurantsdetails = async () => {
       try {
 
-        const res = await axios.get("http://localhost:8000/restaurant/getAllrestaurant");
+        const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/restaurant/getAllrestaurant`);
         const all = res.data?.data || [];
 
 

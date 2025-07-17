@@ -26,7 +26,7 @@ const FamousDishes = () => {
     setMessage('');
 
     try {
-      const res = await axios.get(`http://localhost:8000/dish/searchdish`, {
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/dish/searchdish`, {
         params: { query: searchQuery }
       });
 

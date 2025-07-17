@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable no-unused-vars */
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
@@ -16,10 +17,8 @@ const Feedback = () => {
 
     const getAllFeedbackData = async () => {
         try {
-            const res = await axios.get('http://localhost:8000/feedbackpage/getallFeedback', {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
+            const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/feedbackpage/getallFeedback`, {
+                headers: { Authorization: `Bearer ${token}` }
             });
             setAllFeedbacks(res.data);
         } catch (error) {
@@ -34,17 +33,15 @@ const Feedback = () => {
         }
 
         try {
-            const res = await axios.post('http://localhost:8000/feedbackpage', {
+            const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/feedbackpage`, {
                 feedbackText: feedback
             }, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
+                headers: { Authorization: `Bearer ${token}` }
             });
 
             setMessage("🌟 Thanks! Your feedback helps shape our service.");
             setFeedback('');
-            getAllFeedbackData(); // Refresh list
+            getAllFeedbackData();
         } catch (error) {
             console.error("Error submitting feedback:", error);
         }
@@ -52,12 +49,10 @@ const Feedback = () => {
 
     const removeMyFeedback = async (id) => {
         try {
-            await axios.delete(`http://localhost:8000/feedbackpage/deleteFeed?id=${id}`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
+            await axios.delete(`${import.meta.env.VITE_API_BASE_URL}/feedbackpage/deleteFeed?id=${id}`, {
+                headers: { Authorization: `Bearer ${token}` }
             });
-            getAllFeedbackData(); // Refresh list
+            getAllFeedbackData();
         } catch (error) {
             console.error("Error deleting feedback:", error);
         }

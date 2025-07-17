@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import { UserContext } from '../UserContext';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
 const TableBooking = () => {
@@ -12,7 +12,6 @@ const TableBooking = () => {
     const [experiences, setExperiences] = useState([]);
     const [chatMessages, setChatMessages] = useState([]);
     const [chatInput, setChatInput] = useState('');
-    const [showChat, setShowChat] = useState(false);
     const { id: restaurantId } = useParams();
     const [userBookings, setUserBookings] = useState([]);
     const [bookingId, setBookingId] = useState(null);
@@ -48,9 +47,10 @@ const TableBooking = () => {
         const fetchExperiences = async () => {
             if (activeTab === 'experience' && bookingId) {
                 try {
-                    const res = await axios.get(`http://localhost:8000/bookings/getExperience?id=${bookingId}`, {
+                    const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/bookings/getExperience?id=${bookingId}`, {
                         headers: { Authorization: `Bearer ${token}` }
                     });
+
                     setExperiences(res.data.experiences || []);
                 } catch (err) {
                     console.error('Error fetching experiences:', err);
@@ -86,15 +86,14 @@ const TableBooking = () => {
                 experiences: [],
             };
 
-            const res = await axios.post('http://localhost:8000/bookings', bookingData, {
+            const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/bookings`, bookingData, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-
             const newBookingId = res.data._id || res.data.booking?._id;
             setBookingId(newBookingId);
             localStorage.setItem('bookingId', newBookingId);
 
-            const bookingsRes = await axios.get('http://localhost:8000/bookings/getBookingsByUser', {
+            const bookingsRes = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/bookings/getBookingsByUser`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setUserBookings(bookingsRes.data.bookings || []);
@@ -109,10 +108,7 @@ const TableBooking = () => {
                 specialRequests: '',
             });
 
-            toast.info('Your booking request has been submitted. You will be notified when the restaurant confirms.', {
-                position: "top-center",
-                autoClose: 5000
-            });
+            toast.success()
         } catch (error) {
             console.error('Booking error:', error.response?.data || error.message);
             toast.error(error.response?.data?.error || 'Booking failed');
@@ -135,7 +131,7 @@ const TableBooking = () => {
             }
 
             const res = await axios.post(
-                `http://localhost:8000/bookings/experience?id=${bookingId}`,
+                `${import.meta.env.VITE_API_BASE_URL}/bookings/experience?id=${bookingId}`,
                 expFormData,
                 {
                     headers: {
@@ -167,7 +163,7 @@ const TableBooking = () => {
     useEffect(() => {
         const fetchUserBookings = async () => {
             try {
-                const res = await axios.get('http://localhost:8000/bookings/getBookingsByUser', {
+                const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/bookings/getBookingsByUser`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 setUserBookings(res.data.bookings || []);
@@ -309,43 +305,9 @@ const TableBooking = () => {
                         <p>📧 Email: support@bitebliss.com</p>
                         <p>🕒 Hours: 10 AM - 10 PM</p>
                     </div>
-                    {!showChat ? (
-                        <button className="chat-btn" onClick={() => setShowChat(true)}>
-                            Chat with Support
-                        </button>
-                    ) : (
-                        <div className="chat-container">
-                            <button
-                                className="chat-close-btn"
-                                onClick={() => {
-                                    setShowChat(false);
-                                    setChatMessages([]);
-                                }}
-                            >
-                                ×
-                            </button>
-                            <div className="chat-messages">
-                                {chatMessages.length === 0 ? (
-                                    <p className="empty-msg">Start a conversation with our support team.</p>
-                                ) : (
-                                    chatMessages.map((msg, i) => (
-                                        <div key={i} className={`message ${msg.from}`}>
-                                            {msg.text}
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                            <div className="chat-input">
-                                <input
-                                    type="text"
-                                    value={chatInput}
-                                    onChange={(e) => setChatInput(e.target.value)}
-                                    placeholder="Type your message..."
-                                />
-                                <button onClick={handleChatSend}>Send</button>
-                            </div>
-                        </div>
-                    )}
+                    <Link to="/helppage" className="chat-btn">
+                        Chat with Support
+                    </Link>
                 </div>
             )}
 
