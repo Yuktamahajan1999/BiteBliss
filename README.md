@@ -23,7 +23,10 @@ Bite Bliss is a responsive, full-stack food delivery web application built using
 - **AI Modules:** OpenAI (Taste Bot – Coming Soon)
 - **Deployment:** Vercel (client), Render (server)
 
+## 🚀 Live Website
 
+🔗 [https://bite-bliss-rho.vercel.app](https://bite-bliss-rho.vercel.app)
+------
 📂 Project Status
  This project is currently under development. Major features are functional, but some modules are being actively improved.
 
