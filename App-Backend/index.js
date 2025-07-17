@@ -53,7 +53,9 @@ const io = new Server(server, {
       'http://localhost:5174',
       'http://localhost:5175',
       'http://localhost:5176',
-      'https://bite-bliss-git-main-yukta-mahajans-projects.vercel.app', 
+      'http://localhost:5177',
+      'https://bite-bliss-git-main-yukta-mahajans-projects.vercel.app',
+      'https://bite-bliss-rho.vercel.app', 
     ],
     credentials: true,
   }
@@ -71,6 +73,7 @@ app.use(cors({
     'http://localhost:5176',
     'http://localhost:5177',
     'https://bite-bliss-git-main-yukta-mahajans-projects.vercel.app',
+    'https://bite-bliss-rho.vercel.app', 
   ],
   credentials: true,
 }));
