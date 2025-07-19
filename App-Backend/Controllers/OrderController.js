@@ -37,9 +37,7 @@ export const createOrder = async (req, res) => {
       }
     } else if (req.body.orderType === 'dining' && !restaurant.acceptingBookings) {
       return res.status(400).json({ message: "Not accepting bookings" });
-    } else if (req.body.orderType === 'train' && !restaurant.deliveryAvailable) {
-      return res.status(400).json({ message: "Train delivery unavailable" });
-    }
+    } 
 
     const { restaurantName, restaurantLocation, restaurantId, items, paymentMethod,
       totalAmount, addressId, gst, deliveryFee, payment, orderType } = req.body;
@@ -67,30 +65,10 @@ export const createOrder = async (req, res) => {
         deliveryFee,
         status: "pending",
         orderPlacedTime: new Date(),
-        isTrainOrder: orderType === 'train',
         orderType
       });
 
       await order.save({ session });
-
-      if (orderType === 'train') {
-        const { pnrNumber, trainNumber, stationName, mealType, specialRequest } = req.body;
-        const trainOrder = new OrderOnTrain({
-          orderNumber: `TRN-${Date.now()}`,
-          orderId: order._id,
-          userId: req.userId,
-          restaurantId,
-          pnrNumber,
-          trainNumber,
-          stationName,
-          mealType,
-          specialRequest: specialRequest || "",
-          status: "Pending"
-        });
-        await trainOrder.save({ session });
-        order.trainOrderRef = trainOrder._id;
-        await order.save({ session });
-      }
 
       const existingRec = await Recommendation.findOne({
         userId: req.userId,
@@ -111,7 +89,6 @@ export const createOrder = async (req, res) => {
       res.status(201).json({
         message: "Order created successfully",
         order,
-        ...(orderType === 'train' && { trainOrder })
       });
     } catch (error) {
       await session.abortTransaction();

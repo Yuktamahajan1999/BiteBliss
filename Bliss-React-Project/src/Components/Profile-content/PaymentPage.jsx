@@ -11,12 +11,6 @@ import { SiGooglepay } from 'react-icons/si';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
-const ORDER_TYPES = {
-  NORMAL: 'normal',
-  TRAIN: 'train',
-  GROUP: 'group'
-};
-
 const PaymentPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -162,18 +156,6 @@ const PaymentPage = () => {
   const handleOrderPayment = async (trimmedCardDetails) => {
     console.log('🟢 Starting order payment process...');
 
-    const orderType = location.state?.orderType || ORDER_TYPES.NORMAL;
-
-    if (orderType === ORDER_TYPES.NORMAL && !location?.state?.address) {
-      toast.error('Delivery address is required');
-      return;
-    }
-
-    if (orderType === ORDER_TYPES.TRAIN && !location?.state?.trainDetails) {
-      toast.error('Train details are required');
-      return;
-    }
-
     if (!location?.state?.restaurant?._id) {
       toast.error('Restaurant details are missing');
       return;
@@ -183,7 +165,6 @@ const PaymentPage = () => {
       userId: user.id,
       method: selectedMethod,
       type: 'order',
-      orderType,
       amount: Number(amount),
       transactionId,
       restaurantId: location.state.restaurant._id,
@@ -201,17 +182,7 @@ const PaymentPage = () => {
       rewardPointsUsed: location.state.rewardPointsUsed || 0
     };
 
-    if (orderType === ORDER_TYPES.NORMAL) {
-      payload.address = location.state.address._id || location.state.address;
-    }
-    else if (orderType === ORDER_TYPES.TRAIN) {
-      payload.trainDetails = location.state.trainDetails;
-    }
-    else if (orderType === ORDER_TYPES.GROUP) {
-      payload.groupDetails = location.state.groupDetails;
-    }
 
-    // Add payment details
     if (selectedMethod === 'credit-card') {
       payload.cardDetails = {
         number: trimmedCardDetails.number,
@@ -248,7 +219,6 @@ const PaymentPage = () => {
         const updatedOrder = {
           ...response.data.order,
           deliveryStage: statusStageMap[orderStatus] ?? 1,
-          orderType // Include order type in the order object
         };
 
         localStorage.setItem('currentOrder', JSON.stringify(updatedOrder));
@@ -359,28 +329,9 @@ const PaymentPage = () => {
       <div className="payment-container">
         <div className="payment-header">
           <h2>
-            {paymentType === 'donation' ? 'Donation Payment' :
-              location.state?.orderType === ORDER_TYPES.TRAIN ? 'Train Order Payment' :
-                location.state?.orderType === ORDER_TYPES.GROUP ? 'Group Order Payment' : 'Order Payment'}
+            {paymentType === 'donation' ? 'Donation Payment' : 'Order Payment'}
           </h2>
           <p>Total Amount: ₹{amount}</p>
-
-          {location.state?.orderType === ORDER_TYPES.TRAIN && (
-            <div className="order-type-details">
-              <p><FaTrain /> Train Order Details:</p>
-              <p>PNR: {location.state.trainDetails?.pnr}</p>
-              <p>Train No: {location.state.trainDetails?.trainNumber}</p>
-              <p>Station: {location.state.trainDetails?.station}</p>
-            </div>
-          )}
-
-          {location.state?.orderType === ORDER_TYPES.GROUP && (
-            <div className="order-type-details">
-              <p>🍽️ Group Order Details:</p>
-              <p>Host: {location.state.groupDetails?.hostName}</p>
-              <p>Participants: {location.state.groupDetails?.participants?.length || 0}</p>
-            </div>
-          )}
         </div>
         {renderPaymentSection('Digital Wallets', digitalWallets)}
         {renderPaymentSection('Credit Cards', creditOptions)}

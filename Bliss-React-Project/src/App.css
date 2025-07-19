@@ -1907,6 +1907,7 @@ a:visited {
 .btn-train-order:hover {
   background: #8e44ad;
 }
+
 .btn-group-order {
   width: 100%;
   padding: 12px;
@@ -2524,8 +2525,13 @@ a:visited {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* Error Message */
@@ -2537,6 +2543,7 @@ a:visited {
 
 /* Responsive Styles */
 @media (max-width: 768px) {
+
   .order-review-container,
   .order-tracking-container,
   .delivery-dashboard {
@@ -5860,12 +5867,40 @@ a:visited {
   gap: 10px;
 }
 
-.order-train-desc {
-  text-align: center;
+.train-order-items {
   margin-bottom: 30px;
-  font-size: 16px;
-  color: #4b5563;
-  line-height: 1.6;
+  padding: 20px;
+  background: #f9fafb;
+  border-radius: 12px;
+}
+
+.train-order-items h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #1f2937;
+  margin-bottom: 15px;
+}
+
+.train-order-items ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 15px 0;
+}
+
+.train-order-items li {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.order-total {
+  font-size: 18px;
+  text-align: right;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #e5e7eb;
 }
 
 .order-train-form {
@@ -6015,7 +6050,8 @@ a:visited {
   }
 }
 
-@media (max-width: 500px) {
+/* Media Queries */
+@media (max-width: 600px) {
   .order-train-container {
     margin: 20px;
     padding: 30px 20px;
@@ -6028,6 +6064,17 @@ a:visited {
 
   .order-train-form button {
     padding: 14px;
+  }
+}
+
+@media (max-width: 400px) {
+  .order-train-container {
+    padding: 25px 15px;
+  }
+
+  .order-train-form input,
+  .order-train-form textarea {
+    padding: 12px;
   }
 }
 

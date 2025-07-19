@@ -108,21 +108,9 @@ const Profile = () => {
                             <KeyboardArrowRightIcon className="arrow-icon" />
                         </div>
                     </Link>
-                    <Link to="/groupdining">
-                        <div className={`profile ${theme}`}>
-                            <h3><img src="Icons/group.png" alt="" className="feature-icon" /> Group Dining</h3>
-                            <KeyboardArrowRightIcon className="arrow-icon" />
-                        </div>
-                    </Link>
                     <Link to="/deliverypartner">
                         <div className={`profile ${theme}`}>
                             <h3><img src="Icons/deliveryboy.png" alt="" className="feature-icon" />Delivery Partner</h3>
-                            <KeyboardArrowRightIcon className="arrow-icon" />
-                        </div>
-                    </Link>
-                    <Link to="/orderontrain">
-                        <div className={`profile ${theme}`}>
-                            <h3><img src="Icons/train.png" alt="" className="feature-icon" /> Order on Train</h3>
                             <KeyboardArrowRightIcon className="arrow-icon" />
                         </div>
                     </Link>

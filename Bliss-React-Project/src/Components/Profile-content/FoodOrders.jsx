@@ -9,7 +9,6 @@ import {
   FaCheckCircle,
   FaUtensils,
   FaBoxOpen,
-  FaStore,
   FaMotorcycle,
   FaHome,
   FaStar,
@@ -19,18 +18,17 @@ import {
   FaPercent,
   FaTruck,
   FaUserAlt,
-  FaTrain,
   FaTimes,
   FaTimesCircle
 } from 'react-icons/fa';
 
 const stageDurations = {
-  1: 300000, // 5 minutes for pending
-  2: 1200000, // 20 minutes for restaurant_accepted
-  3: 300000, // 5 minutes for preparing
-  4: 300000, // 5 minutes for ready_for_pickup
-  5: 600000, // 10 minutes for out_for_delivery
-  6: 120000 // 2 minutes for delivered
+  1: 300000,
+  2: 1200000,
+  3: 300000,
+  4: 300000,
+  5: 600000,
+  6: 120000
 };
 
 const deliveryStatus = [
@@ -73,11 +71,6 @@ function FoodOrderPage() {
   const [rewards, setRewards] = useState([]);
   const [addressLoading, setAddressLoading] = useState(false);
   const [feedback, setFeedback] = useState('');
-  const ORDER_TYPES = {
-    NORMAL: 'normal',
-    TRAIN: 'train',
-    GROUP: 'group'
-  };
 
   const navigate = useNavigate();
   const orderRef = useRef(null);
@@ -94,7 +87,7 @@ function FoodOrderPage() {
         throw new Error("No authentication token found");
       }
 
-      const res = await axios.get('http://localhost:8000/address/getAddress', {
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/address/getAddress`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -127,11 +120,9 @@ function FoodOrderPage() {
           return;
         }
 
-        const response = await axios.get('http://localhost:8000/order/getOrderById', {
+        const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/order/getOrderById`, {
           params: { id: parsedOrder._id },
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
-          },
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
         });
 
         if (!response.data || typeof response.data !== 'object') {
@@ -185,12 +176,10 @@ function FoodOrderPage() {
               ? responseData.deliveryPartner._id
               : responseData.deliveryPartner;
             const partnerResponse = await axios.get(
-              'http://localhost:8000/deliverypartner/getdeliveryPartner',
+              `${import.meta.env.VITE_API_BASE_URL}/deliverypartner/getdeliveryPartner`,
               {
                 params: { id: partnerId },
-                headers: {
-                  Authorization: `Bearer ${localStorage.getItem('token')}`
-                }
+                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
               }
             );
             deliveryPartner = partnerResponse.data.data || partnerResponse.data;
@@ -251,7 +240,7 @@ function FoodOrderPage() {
     const fetchCoupons = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get('http://localhost:8000/coupons/allCoupons', {
+        const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/coupons/allCoupons`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setCoupons(response.data);
@@ -270,7 +259,7 @@ function FoodOrderPage() {
         const token = localStorage.getItem('token');
         if (!token) return;
 
-        const pointsRes = await axios.get('http://localhost:8000/rewards/userpoints', {
+        const pointsRes = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/rewards/userpoints`, {
           headers: { Authorization: `Bearer ${token}` }
         });
 
@@ -355,7 +344,7 @@ function FoodOrderPage() {
 
     try {
       await axios.post(
-        'http://localhost:8000/coupons/applyCoupon',
+        `${import.meta.env.VITE_API_BASE_URL}/coupons/applyCoupon`,
         { code: coupon.code, orderAmount: subtotal },
         { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
       );
@@ -368,7 +357,7 @@ function FoodOrderPage() {
 
   const handleRemoveCoupon = async () => {
     try {
-      await axios.delete('http://localhost:8000/coupons/removeCoupon', {
+      await axios.delete(`${import.meta.env.VITE_API_BASE_URL}/coupons/removeCoupon`, {
         data: { code: appliedCoupon.code },
         headers: {
           'Content-Type': 'application/json',
@@ -385,7 +374,7 @@ function FoodOrderPage() {
   const handleRedeemReward = async (reward) => {
     try {
       await axios.post(
-        'http://localhost:8000/rewards/redeemedReward',
+        `${import.meta.env.VITE_API_BASE_URL}/rewards/redeemedReward`,
         { rewardTitle: reward.title },
         {
           headers: {
@@ -396,7 +385,7 @@ function FoodOrderPage() {
       );
       toast.success(`Reward redeemed: ${reward.title}`);
       setShowRewards(false);
-      const pointsRes = await axios.get('http://localhost:8000/rewards/userpoints', {
+      const pointsRes = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/rewards/userpoints`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       });
       setUserPoints(pointsRes.data.points);
@@ -421,8 +410,7 @@ function FoodOrderPage() {
         toast.error('Please select a rating');
         return;
       }
-
-      await axios.post('http://localhost:8000/deliverypartner/rate', {
+      await axios.post(`${import.meta.env.VITE_API_BASE_URL}/deliverypartner/rate`, {
         orderId: order._id,
         rating,
         feedback
@@ -483,72 +471,11 @@ function FoodOrderPage() {
         subtotal,
         deliveryFee: isFreeDelivery ? 0 : 40,
         gst,
-        isFreeDelivery,
-        orderType: 'normal'
+        isFreeDelivery
       }
     });
   };
 
-  const handleTrainOrder = () => {
-    const itemsArray = Array.isArray(cart.items) ? cart.items : Object.values(cart.items || {});
-
-    if (itemsArray.length === 0) {
-      toast.error("Your cart is empty");
-      return;
-    }
-    const { total, subtotal, gst, deliveryFee, isFreeDelivery } = calculateTotals(itemsArray, 40);
-
-    navigate('/paymentpage', {
-      state: {
-        restaurant: cart.restaurant,
-        restaurantId: cart.restaurant?._id || cart.restaurant?.id,
-        restaurantName: cart.restaurant?.name,
-        items: itemsArray.map(({ name, quantity, price }) => ({
-          name,
-          quantity: quantity || 1,
-          price
-        })),
-        coupon: appliedCoupon?.code,
-        rewardPointsUsed: userPoints > 0 ? Math.min(userPoints, total * 10) : 0,
-        totalAmount: total,
-        subtotal: calculateTotals(itemsArray, 40).subtotal,
-        gst: calculateTotals(itemsArray, 40).gst,
-        deliveryFee: calculateTotals(itemsArray, 40).deliveryFee,
-        isFreeDelivery: calculateTotals(itemsArray, 40).isFreeDelivery,
-        orderType: 'train'
-      }
-    });
-  };
-
-  const handleGroupOrder = () => {
-    const itemsArray = Array.isArray(cart.items) ? cart.items : Object.values(cart.items || {});
-    const { total } = calculateTotals(itemsArray, 40);
-
-    navigate('/paymentpage', {
-      state: {
-        restaurant: cart.restaurant,
-        restaurantId: cart.restaurant?._id || cart.restaurant?.id,
-        restaurantName: cart.restaurant?.name,
-        items: itemsArray.map(({ name, quantity, price }) => ({
-          name,
-          quantity: quantity || 1,
-          price
-        })),
-        coupon: appliedCoupon?.code,
-        rewardPointsUsed: userPoints > 0 ? Math.min(userPoints, total * 10) : 0,
-        totalAmount: total,
-        subtotal: calculateTotals(itemsArray, 40).subtotal,
-        gst: calculateTotals(itemsArray, 40).gst,
-        deliveryFee: calculateTotals(itemsArray, 40).deliveryFee,
-        isFreeDelivery: calculateTotals(itemsArray, 40).isFreeDelivery,
-        orderType: 'group',
-        groupOrderDetails: {
-          hostName: '',
-          participants: []
-        }
-      }
-    });
-  };
   if (!order) {
     const itemsArray = Array.isArray(cart.items) ? cart.items : Object.values(cart.items || {});
     const hasCartItems = itemsArray.length > 0;
@@ -675,7 +602,6 @@ function FoodOrderPage() {
           </div>
         )}
 
-        {/* Always show these buttons at the bottom */}
         <div className="special-order-options">
           <button
             className="btn-browse-restaurants"
@@ -686,44 +612,6 @@ function FoodOrderPage() {
             }}
           >
             Browse Restaurants
-          </button>
-
-          <button
-            className="btn-train-order"
-            onClick={() => {
-              if (cart.items && Object.keys(cart.items).length > 0) {
-                navigate('/orderontrain', {
-                  state: {
-                    restaurant: cart.restaurant,
-                    items: Object.values(cart.items),
-                    fromCart: true
-                  }
-                });
-              } else {
-                navigate('/orderontrain');
-              }
-            }}
-          >
-            <FaTrain /> Order Food on Train
-          </button>
-
-          <button
-            className="btn-group-order"
-            onClick={() => {
-              if (cart.items && Object.keys(cart.items).length > 0) {
-                navigate('/groupdining', {
-                  state: {
-                    restaurant: cart.restaurant,
-                    items: Object.values(cart.items),
-                    fromCart: true
-                  }
-                });
-              } else {
-                navigate('/groupdining');
-              }
-            }}
-          >
-            🍽️ Start Group Order
           </button>
         </div>
       </div>

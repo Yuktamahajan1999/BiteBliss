@@ -26,9 +26,7 @@ import TermsOfService from './Components/Profile-content/TermsOfService';
 import HelpPage from './Components/Profile-content/Help';
 import Settings from './Components/Profile-content/Settings';
 import Notifications from './Components/Profile-content/Notification';
-import OrderOnTrain from './Components/Profile-content/OrderOnTrain';
 import FoodOrders from './Components/Profile-content/FoodOrders';
-import GroupDining from './Components/Profile-content/GroupDining';
 import TableBooking from './Components/Profile-content/TableBooking';
 import PartnerWithUs from './Components/Profile-content/PartnerWithUs';
 import CorporateCatering from './Components/Profile-content/CorporateCatering';
@@ -116,10 +114,8 @@ function App() {
         <Route path="/quickfixmeals" element={<ProtectedRoute><QuickFixMeals /></ProtectedRoute>} />
         <Route path="/famousdishes" element={<ProtectedRoute><FamousDishes /></ProtectedRoute>} />
         <Route path="/foodorders" element={<ProtectedRoute><FoodOrders /></ProtectedRoute>} />
-        <Route path="/orderontrain" element={<ProtectedRoute><OrderOnTrain /></ProtectedRoute>} />
         <Route path="/helppage" element={<ProtectedRoute><HelpPage /></ProtectedRoute>} />
         <Route path="/terms-of-service" element={<ProtectedRoute><TermsOfService /></ProtectedRoute>} />
-        <Route path="/groupdining" element={<ProtectedRoute><GroupDining /></ProtectedRoute>} />
         <Route path="/feedingindia" element={<ProtectedRoute><FeedingIndia /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/partner" element={<ProtectedRoute><PartnerWithUs /></ProtectedRoute>} />

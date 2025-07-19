@@ -22,7 +22,7 @@ const OrderSchema = new mongoose.Schema({
   },
   orderType: {
     type: String,
-    enum: ['normal', 'train', 'group'],
+    enum: ['normal'],
     required: true,
     default: 'normal'
   },
@@ -30,18 +30,6 @@ const OrderSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Payment',
     required: true
-  },
-  isTrainOrder: {
-    type: Boolean,
-    default: false
-  },
-  trainOrderRef: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'OrderOnTrain'
-  },
-  groupOrderRef: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'GroupOrder'
   },
   items: [
     {
